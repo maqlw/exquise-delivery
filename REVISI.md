@@ -9,8 +9,13 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v003** | 13/11/2026 | Kartu preview pakai logo Exquise (navy) di background krem + aksen terakota. |
 | **v002** | 13/11/2026 | Kartu preview WhatsApp untuk link lacak (gambar Exquise + nama penerima & produk). |
 | **v001** | 13/11/2026 | Titik awal riwayat versi. Berisi semua fitur sampai hari ini (rincian di bawah). |
+
+## v003 · 13/11/2026 · logo Exquise di kartu preview
+- Gambar kartu diganti `public/og-exquise.jpg`: logo EXQUISE PATISSERIE warna navy (diambil dari logo website, diwarnai ulang), background krem, garis & truk terakota mengikuti warna logo.
+- Ornamen pita oranye di atas logo belum ada (file logo lengkapnya belum tersedia di sesi).
 
 ## v002 · 13/11/2026 · kartu preview WhatsApp
 - Link lacak yang dikirim lewat WhatsApp tampil sebagai kartu: gambar hijau Exquise "Lacak pesananmu", judul "Pesanan untuk {penerima} · Exquise Patisserie", keterangan produk & pemesan, dan domain delivery.exquisepatisserie.space.
