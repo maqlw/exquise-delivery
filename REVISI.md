@@ -3,6 +3,10 @@
 Setiap revisi diberi nomor **v001, v002, …**. Untuk kembali ke salah satu versi, cukup bilang ke Claude:
 > "restore ke v00X"
 
+Semua versi tersimpan permanen di GitHub (private): https://github.com/maqlw/exquise-delivery
+- Versi terbaru: branch `main`
+- Tiap versi: branch `versi/v001`, `versi/v002`, … (pilih di menu branch GitHub untuk melihat isinya)
+
 Yang dikembalikan oleh restore: **tampilan web** (delivery.exquisepatisserie.space) dan **fungsi server** (WhatsApp, Lalamove, login kurir).
 Yang **tidak** ikut mundur: **data** (pesanan, kurir, pengaturan, template WA) dan struktur database.
 Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi lama tetap bisa jalan di database yang baru.
