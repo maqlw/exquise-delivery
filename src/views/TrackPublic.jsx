@@ -41,8 +41,8 @@ export default function TrackPublic({ token }) {
       {d.proof_path && <div><div className="lbl">Foto bukti terima</div><img className="proof" src={proofUrl(d.proof_path)} alt="Foto bukti terima" /></div>}</section>
     <section className="panel fadeup" style={{ animationDelay: ".12s" }}><h2>Detail pengiriman</h2>
       <dl className="info">
-        <dt>Pengirim</dt><dd>{d.sender || "–"}</dd>
-        <dt>Penerima</dt><dd>{d.recipient}</dd>
+        <dt>Pengirim</dt><dd>{d.sender || "–"}{d.sender_phone && <span className="mono-soft"> · {d.sender_phone}</span>}</dd>
+        <dt>Penerima</dt><dd>{d.recipient}{d.recipient_phone && <span className="mono-soft"> · {d.recipient_phone}</span>}</dd>
         <dt>Alamat penerima</dt><dd>{d.address}</dd>
         <dt>Pesanan</dt><dd>{d.item}</dd>
         {s === "sampai" && d.receiver_name && <><dt>Diterima oleh</dt><dd>{d.receiver_name}</dd></>}

@@ -13,6 +13,7 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v012** | 13/11/2026 | No HP disamarkan (081xxx1234) di link publik; browser selalu ambil versi website terbaru. |
 | **v011** | 13/11/2026 | Pesanan grup: 1 pemesan banyak penerima cukup 2 WhatsApp (awal & akhir) + 1 link pantau semua penerima. |
 | **v010** | 13/11/2026 | Saklar cek GPS kembali ke outlet; kotak cari & filter tanggal baru; menu HP melayang di bawah ala Dynamic Island. |
 | **v009** | 13/11/2026 | Radius kembali ke outlet 500 m; transisi liquid glass di semua menu, tab & filter admin; tombol mata di login. |
@@ -24,6 +25,10 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 | **v003** | 13/11/2026 | Kartu preview pakai logo Exquise (navy) di background krem + aksen terakota. |
 | **v002** | 13/11/2026 | Kartu preview WhatsApp untuk link lacak (gambar Exquise + nama penerima & produk). |
 | **v001** | 13/11/2026 | Titik awal riwayat versi. Berisi semua fitur sampai hari ini (rincian di bawah). |
+
+## v012 · 13/11/2026 · privasi No HP & cache
+- Halaman publik (link lacak & link grup) menampilkan No HP pengirim/penerima **tersamar**, mis. `087xxx6465`. Penyamaran dilakukan di server, nomor lengkap tidak pernah dikirim ke halaman publik. Admin & kurir tetap melihat nomor lengkap.
+- Hosting sekarang memberi tahu browser untuk selalu mengambil halaman terbaru (index/lacak), jadi setelah update tidak ada lagi yang tertahan di versi lama (penyebab link grup sempat minta login).
 
 ## v011 · 13/11/2026 · pesanan grup
 - Pemesan (No HP sama) dengan **≥ 3 penerima** di tanggal kirim yang sama otomatis jadi **pesanan grup** (angka bisa diubah di Pengaturan → Pesanan grup).

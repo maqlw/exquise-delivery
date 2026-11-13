@@ -17,14 +17,14 @@ export default function TrackGroup({ token }) {
   const n = s => list.filter(o => st(o) === s).length, pct = list.length ? Math.round(100 * (n("sampai") + n("gagal")) / list.length) : 0;
   const words = q.toLowerCase().split(/\s+/).filter(Boolean), vis = list.filter(o => words.every(w => `${o.recipient} ${o.address} ${o.item}`.toLowerCase().includes(w)));
   return shell(<div className="stack trackpage">
-    <section className="panel fadeup"><h1 style={{ fontSize: 22 }}>{list.length} kiriman dari {d.sender}</h1><p className="sub">Tanggal kirim {dmy(d.ship_date)}</p>
+    <section className="panel fadeup"><h1 style={{ fontSize: 22 }}>{list.length} kiriman dari {d.sender}</h1><p className="sub">Tanggal kirim {dmy(d.ship_date)}{d.sender_phone ? ` · ${d.sender_phone}` : ""}</p>
       <div className="grp-prog" role="progressbar" aria-valuenow={pct} aria-valuemin="0" aria-valuemax="100" aria-label="Kiriman selesai"><i style={{ width: `${pct}%` }} /></div>
       <div className="grp-stats"><span><b>{n("sampai")}</b> sampai</span><span><b>{n("jalan")}</b> diantar</span><span><b>{n("siap")}</b> menunggu</span>{n("gagal") > 0 && <span className="bad"><b>{n("gagal")}</b> gagal</span>}</div>
       {pct === 100 && <div className="banner ok">Semua kiriman sudah selesai diantar.</div>}</section>
     <section className="panel fadeup" style={{ animationDelay: ".1s" }}><h2>Daftar penerima</h2>
       {list.length > 5 && <Search value={q} onChange={setQ} placeholder="Cari nama penerima atau alamat" label="Cari penerima" count={vis.length} />}
       <ol className="grp-list">{vis.map(o => <li key={o.token}><a href={`/lacak/${o.token}`}>
-        <div style={{ minWidth: 0 }}><div className="addr">{o.recipient}</div><div className="meta">{o.item}</div><div className="meta">{o.address}</div>
+        <div style={{ minWidth: 0 }}><div className="addr">{o.recipient}{o.recipient_phone && <span className="mono-soft"> · {o.recipient_phone}</span>}</div><div className="meta">{o.item}</div><div className="meta">{o.address}</div>
           <div className="meta">{o.status === "sampai" ? `Diterima ${o.receiver_name || ""} · ${fmtTime(o.delivered_at)}` : o.status === "gagal" ? `Belum berhasil: ${o.fail_reason || "-"}` : o.status === "jalan" ? `Diantar sejak ${fmtTime(o.sent_at)}` : o.via !== "internal" ? `Lewat ${VIA[o.via]}` : "Menunggu diantar"}</div></div>
         <Pill s={st(o)}>{st(o) === "siap" ? "Menunggu" : LABEL[st(o)]}</Pill></a></li>)}</ol>
       {!vis.length && <p className="note">Tidak ada penerima yang cocok.</p>}</section>
