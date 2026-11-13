@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import * as api from "./lib/api.js";
 import { plan, status, todayYmd } from "./lib/logic.js";
-import { useToast } from "./components/ui.jsx";
+import { useToast, Logo } from "./components/ui.jsx";
 import { WilList } from "./components/AreaPicker.jsx";
 import { OrderForm, UpdateChoice, SampaiForm, ConfirmDelete, WaResult } from "./components/OrderModals.jsx";
 import Login from "./views/Login.jsx";
@@ -105,7 +105,7 @@ function Admin({ email }) {
   return (
     <div className="frame"><div className="frame-inner">
       <aside className="side" aria-label="Menu">
-        <div className="brand"><span className="brand-bars" aria-hidden="true"><i style={{ height: 16 }} /><i style={{ height: 20 }} /><i style={{ height: 14 }} /></span>Exquise</div>
+        <div className="brand"><Logo light h={76} /></div>
         <div className="ws"><span className="ws-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 3 7v2h18V7l-9-5Zm-7 9v8H3v2h18v-2h-2v-8h-2v8h-3v-8h-2v8H8v-8H5Z" /></svg></span>
           <div style={{ minWidth: 0, flex: 1 }}><label htmlFor="ws-origin">Lokasi asal</label>
             <select id="ws-origin" value={ui.origin} onChange={e => setUi({ ...ui, origin: e.target.value })}>{Object.values(master.origins).map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></div></div>

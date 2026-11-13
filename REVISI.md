@@ -9,9 +9,14 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v004** | 13/11/2026 | Logo resmi Exquise (dengan croissant) di kartu preview & seluruh website, ikon tab croissant. |
 | **v003** | 13/11/2026 | Kartu preview pakai logo Exquise (navy) di background krem + aksen terakota. |
 | **v002** | 13/11/2026 | Kartu preview WhatsApp untuk link lacak (gambar Exquise + nama penerima & produk). |
 | **v001** | 13/11/2026 | Titik awal riwayat versi. Berisi semua fitur sampai hari ini (rincian di bawah). |
+
+## v004 · 13/11/2026 · logo resmi di seluruh website
+- Logo dari file resmi (navy #0D3144 + croissant terakota #BC5539), dibuat 3 versi transparan: warna (`logo-exquise.png`), terang untuk background gelap (`logo-exquise-light.png`), ikon croissant (`icon-croissant.png`).
+- Dipasang di: kartu preview WhatsApp (`og-exquise-logo.jpg`), halaman login, sidebar admin (HP & laptop), header kurir, header halaman lacak customer (background krem + garis terakota), ikon tab browser.
 
 ## v003 · 13/11/2026 · logo Exquise di kartu preview
 - Gambar kartu diganti `public/og-exquise.jpg`: logo EXQUISE PATISSERIE warna navy (diambil dari logo website, diwarnai ulang), background krem, garis & truk terakota mengikuti warna logo.

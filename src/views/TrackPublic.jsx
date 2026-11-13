@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import MapSVG from "../components/MapSVG.jsx";
-import { Timeline, Pill } from "../components/ui.jsx";
+import { Timeline, Pill, Logo } from "../components/ui.jsx";
 import { sb, proofUrl } from "../lib/api.js";
 import { VIA, LABEL, hhmm } from "../lib/logic.js";
 
@@ -12,7 +12,7 @@ export default function TrackPublic({ token }) {
     get(); const t = setInterval(get, 20000); return () => clearInterval(t);
   }, [token]);
   const shell = body => (<div style={{ minHeight: "100%", background: "var(--bg)" }}>
-    <div style={{ background: "#0b120e", padding: "14px 16px" }}><div className="brand"><span className="brand-bars" aria-hidden="true"><i style={{ height: 16 }} /><i style={{ height: 20 }} /><i style={{ height: 14 }} /></span>Exquise Patisserie</div></div>
+    <div className="pubhead"><Logo h={72} /></div>
     <div className="public">{body}</div></div>);
   if (d === undefined) return shell(<p className="sub"><span className="spin" /> Memuat pesanan…</p>);
   if (d === null) return shell(<section className="panel"><h1>Pesanan tidak ditemukan</h1><p className="sub">Link lacak tidak valid. Periksa kembali link dari WhatsApp, atau hubungi Exquise Patisserie.</p></section>);

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { sb } from "../lib/api.js";
 import { normPhone } from "../lib/logic.js";
-import { Field } from "../components/ui.jsx";
+import { Field, Logo } from "../components/ui.jsx";
 
 export default function Login() {
   const [mode, setMode] = useState("admin"), [a, setA] = useState(""), [b, setB] = useState(""), [err, setErr] = useState(""), [busy, setBusy] = useState(false);
@@ -17,7 +17,7 @@ export default function Login() {
   return (
     <div className="frame"><div className="frame-inner" style={{ justifyContent: "center", alignItems: "center" }}>
       <form className="panel" style={{ width: "min(420px,100%)", margin: 16 }} onSubmit={submit}>
-        <div className="brand" style={{ color: "var(--ink)", padding: 0 }}><span className="brand-bars" aria-hidden="true"><i style={{ height: 16 }} /><i style={{ height: 20 }} /><i style={{ height: 14 }} /></span>Exquise Delivery</div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}><Logo h={84} /><span className="eyebrow">Delivery</span></div>
         <div className="seg" role="group" aria-label="Masuk sebagai">
           {[["admin", "Admin"], ["kurir", "Kurir"]].map(([k, t]) => <button type="button" key={k} aria-pressed={mode === k} onClick={() => { setMode(k); setA(""); setB(""); setErr(""); }}>{t}</button>)}
         </div>

@@ -13,6 +13,8 @@ export const StopInfo = ({ o }) => (<div className="stopinfo">
   <div className="meta"><b>Alamat</b> {o.address}</div>
   <div className="meta"><b>Produk</b> {o.item}{o.notes ? ` · “${o.notes}”` : ""}</div>
 </div>);
+// Logo resmi: versi warna untuk background terang, versi terang (tulisan putih) untuk background gelap.
+export const Logo = ({ light, h = 44 }) => <img src={light ? "/logo-exquise-light.png" : "/logo-exquise.png"} alt="Exquise Patisserie" height={h} style={{ display: "block", width: "auto", height: h }} />;
 export const initials = n => n.split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
 
 // Modal: lembar dari bawah di HP, kotak di tengah di laptop. Esc dan klik latar menutup.

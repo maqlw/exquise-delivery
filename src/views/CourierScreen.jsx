@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import MapSVG from "../components/MapSVG.jsx";
-import { Pill, StopInfo } from "../components/ui.jsx";
+import { Pill, StopInfo, Logo } from "../components/ui.jsx";
 import { SampaiForm } from "../components/OrderModals.jsx";
 import { sb, fromDb, uploadProof, notify } from "../lib/api.js";
 import { BATCH, FAIL_REASONS, LABEL, hhmm, dmy, todayYmd } from "../lib/logic.js";
@@ -60,7 +60,7 @@ export default function CourierScreen() {
   };
   const header = (
     <div className="side" style={{ width: "auto", position: "sticky", top: 0, zIndex: 6, background: "#0b120e", flexDirection: "row", alignItems: "center", padding: "12px max(16px, env(safe-area-inset-left, 0px))" }}>
-      <div className="brand" style={{ flex: 1 }}><span className="brand-bars" aria-hidden="true"><i style={{ height: 16 }} /><i style={{ height: 20 }} /><i style={{ height: 14 }} /></span>Exquise</div>
+      <div className="brand" style={{ flex: 1 }}><Logo light h={50} /></div>
       <button className="btn sm" style={{ background: "#1d2a22", color: "#fff" }} onClick={() => sb.auth.signOut()}>Keluar</button></div>);
   return (<div style={{ minHeight: "100%", background: "var(--bg)" }}>{header}<main>
     <h1>Halo, {me?.name || "kurir"}</h1>
