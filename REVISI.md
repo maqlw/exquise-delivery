@@ -9,7 +9,13 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v002** | 13/11/2026 | Kartu preview WhatsApp untuk link lacak (gambar Exquise + nama penerima & produk). |
 | **v001** | 13/11/2026 | Titik awal riwayat versi. Berisi semua fitur sampai hari ini (rincian di bawah). |
+
+## v002 · 13/11/2026 · kartu preview WhatsApp
+- Link lacak yang dikirim lewat WhatsApp tampil sebagai kartu: gambar hijau Exquise "Lacak pesananmu", judul "Pesanan untuk {penerima} · Exquise Patisserie", keterangan produk & pemesan, dan domain delivery.exquisepatisserie.space.
+- Dibuat oleh `public/lacak.php` (judul per pesanan) + gambar `public/og.jpg`. Link yang salah tetap tampil kartu umum "Lacak pesanan · Exquise Patisserie".
+- Isi kartu tidak memuat status pengiriman, karena WhatsApp menyimpan kartu lama dan status bisa berubah.
 
 ## v001 · 13/11/2026 · titik awal
 Semua yang sudah dibuat sebelum riwayat versi dimulai:
