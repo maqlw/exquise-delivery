@@ -4,6 +4,7 @@ import { plan, status, todayYmd } from "./lib/logic.js";
 import { useToast, Logo } from "./components/ui.jsx";
 import { WilList } from "./components/AreaPicker.jsx";
 import HomeRequests from "./components/HomeRequests.jsx";
+import { WaAlert } from "./components/WhatsApp.jsx";
 import { OrderForm, UpdateChoice, SampaiForm, ConfirmDelete, WaResult } from "./components/OrderModals.jsx";
 import Login from "./views/Login.jsx";
 import Dashboard from "./views/Dashboard.jsx";
@@ -65,7 +66,10 @@ function Admin({ email }) {
   useEffect(() => { prev.current = view; }, [view]);
   const [master, setMaster] = useState(null), [day, setDay] = useState(null), [date, setDate] = useState(null), [dates, setDates] = useState([]);
   const [ui, setUi] = useState({ origin: "ck", batch: 1, filter: "all", lacak: null, q: "" });
-  const [modal, setModal] = useState(null);
+  const [modal, setModal] = useState(null), [wa, setWa] = useState(null);
+  // Status WhatsApp (Fonnte): kuota, kedaluwarsa, terhubung. Dimuat sekali, bisa dicek ulang dari Dashboard/Pengaturan.
+  const reloadWa = useCallback(() => api.fonnteApi("status").then(setWa).catch(e => setWa({ ok: false, reason: e.message })), []);
+  useEffect(() => { reloadWa(); }, [reloadWa]);
   const reload = useCallback(async (d = date) => {
     try {
       const [m, ds] = await Promise.all([api.loadMaster(), api.shipDates()]);
@@ -106,7 +110,7 @@ function Admin({ email }) {
     async remove(o) { await api.deleteOrder(o.id); setModal(null); toast(`Pesanan ${o.code} dihapus`); reload(); },
   };
   const close = () => setModal(null);
-  const ctx = { ...master, ...day, P, date, dates, ui, setUi, reload, toast, act, courier, setDate: d => reload(d) };
+  const ctx = { ...master, ...day, wa, setWa, reloadWa, P, date, dates, ui, setUi, reload, toast, act, courier, setDate: d => reload(d) };
 
   return (
     <div className="frame"><div className="frame-inner">
@@ -122,7 +126,7 @@ function Admin({ email }) {
         <div className="who"><span className="avatar">{email.slice(0, 2).toUpperCase()}</span><div style={{ minWidth: 0, flex: 1 }}><b>Admin</b><span style={{ overflowWrap: "anywhere" }}>{email}</span></div>
           <button className="btn sm" style={{ background: "#1d2a22", color: "#fff" }} onClick={() => api.sb.auth.signOut()}>Keluar</button></div>
       </aside>
-      <div className="viewport"><main><HomeRequests {...ctx} /><div key={view} className={`page-in ${dir}`}><View {...ctx} /></div></main></div>
+      <div className="viewport"><main><WaAlert wa={wa} settings={master.settings} /><HomeRequests {...ctx} /><div key={view} className={`page-in ${dir}`}><View {...ctx} /></div></main></div>
     </div>
       {modal?.kind === "form" && <OrderForm order={modal.order} history={modal.history} origins={master.origins} defaults={{ ymd: date, origin: ui.origin, via: "internal" }} onClose={close} onSave={o => act.saveForm(o, modal.order)} />}
       {modal?.kind === "update" && <UpdateChoice order={modal.order} onClose={close} onKirim={() => act.kirim(modal.order)} onSampai={() => setModal({ kind: "sampai", order: modal.order })} />}

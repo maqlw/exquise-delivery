@@ -1,4 +1,5 @@
 import MapSVG from "../components/MapSVG.jsx";
+import { WaCard } from "../components/WhatsApp.jsx";
 import { Pill, Empty, initials } from "../components/ui.jsx";
 import { BATCH, VIA, status, hhmm, fmtKm, dmy, returnLabel } from "../lib/logic.js";
 
@@ -19,12 +20,13 @@ function HourChart({ rows, batch }) {
   );
 }
 
-export default function Dashboard({ orders, origins, couriers, P, date, dates, setDate, ui, setUi, positions, routes }) {
+export default function Dashboard({ orders, origins, couriers, P, date, dates, setDate, ui, setUi, positions, routes, wa, reloadWa, settings }) {
   const top = (
     <div className="topbar"><h1>Dashboard</h1><div className="grow" />
       <label className="datepill"><i />Kirim <select value={date} onChange={e => setDate(e.target.value)} aria-label="Tanggal kirim" style={{ border: 0, background: "transparent", fontWeight: 600 }}>{[...new Set([date, ...dates])].map(d => <option key={d} value={d}>{dmy(d)}</option>)}</select></label>
       <a className="btn primary" href="#upload">Upload Excel</a></div>);
-  if (!orders.length) return <>{top}<Empty title="Belum ada pengiriman di tanggal ini" desc="Upload file Excel atau tambah pesanan manual di menu Data pengiriman."><a className="btn primary" href="#upload">Ke Data pengiriman</a></Empty></>;
+  const waCard = <WaCard wa={wa} reloadWa={reloadWa} settings={settings} />;
+  if (!orders.length) return <>{top}{waCard}<Empty title="Belum ada pengiriman di tanggal ini" desc="Upload file Excel atau tambah pesanan manual di menu Data pengiriman."><a className="btn primary" href="#upload">Ke Data pengiriman</a></Empty></>;
   const oid = ui.origin, b = ui.batch, org = origins[oid], active = couriers.filter(c => c.active);
   const routed = [];
   for (const k in origins) for (const x of [1, 2, 3]) for (const c of active.filter(c => c.origin_id === k)) { const r = P[k][x].routes[c.id]; r?.seq.forEach(o => routed.push({ o, eta: r.eta[o.code], c, b: x })); }
@@ -35,7 +37,7 @@ export default function Dashboard({ orders, origins, couriers, P, date, dates, s
   const n = s => orders.filter(o => status(o) === s).length, carry = orders.filter(o => o.carry).length;
   const started = id => routes.some(r => r.courier_id === id && r.batch === b && r.started_at && !r.finished_at);
   return (<>
-    {top}
+    {top}{waCard}
     <div className="dash">
       <div className="kc dark"><div><div className="lab">Pengiriman hari ini</div><div className="big">{orders.length} <small>pesanan</small></div><div className="chg"><b>{routed.length}</b> dirute kurir · {carry} carry over</div></div><Mini vals={[1, 2, 3].map(x => routed.filter(y => y.b === x).length)} color={() => "var(--accent-hi)"} /></div>
       <div className="kc"><div><div className="lab">Tepat waktu (rencana)</div><div className="big">{pct}<small>/100%</small></div><div className="chg"><b className={pct < 95 ? "down" : ""}>{onTime} dari {dl.length}</b> alamat ber-request jam</div></div><Mini vals={Object.keys(origins).map(k => routed.filter(y => y.o.origin === k).length)} color={i => i === 0 ? "var(--accent)" : "#d5ddd7"} /></div>

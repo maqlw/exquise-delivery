@@ -187,6 +187,16 @@ export function status(o) {
 export const returnLabel = r => !r || !r.stops_done_at && !r.finished_at ? null
   : r.return_status === "kembali" ? ["sampai", "Sudah kembali"] : r.return_status === "disetujui" ? ["sampai", "Pulang (disetujui)"]
   : r.return_status === "menunggu" ? ["warn", "Minta izin pulang"] : r.finished_at ? ["sampai", "Selesai"] : ["jalan", "Menuju outlet"];
+// Tanggal kedaluwarsa dari Fonnte: "15 November 2026" (bulan Inggris/Indonesia) atau unix timestamp -> Date.
+const BULAN = ["jan", "feb", "mar", "apr", "mei|may", "jun", "jul", "agu|aug", "sep", "okt|oct", "nov", "des|dec"];
+export function parseExpired(v) {
+  if (v == null || v === "") return null;
+  if (/^\d{9,}$/.test(String(v))) return new Date(+v * (String(v).length > 11 ? 1 : 1000));
+  const m = String(v).toLowerCase().match(/(\d{1,2})\s+([a-z]+)\s+(\d{4})/);
+  const i = m ? BULAN.findIndex(b => new RegExp("^(" + b + ")").test(m[2])) : -1;
+  return i < 0 ? null : new Date(+m[3], i, +m[1]);
+}
+export const daysLeft = (d, now = new Date()) => d ? Math.ceil((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 864e5) : null;
 export const routable = o => o.via === "internal" && o.lat != null;
 export function batchOf(o) { return o.batchForced || o.batchReq || (o.deadline != null ? (o.deadline <= 660 ? 1 : o.deadline <= 840 ? 2 : 3) : null); }
 export function timeline(org, seq, b) {

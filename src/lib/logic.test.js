@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normPhone, parseDeadline, parseDate, geocode, buildOrders, plan, status, returnLabel } from "./logic.js";
+import { normPhone, parseDeadline, parseDate, geocode, buildOrders, plan, status, returnLabel, parseExpired, daysLeft } from "./logic.js";
 
 test("No HP dirapikan ke 62", () => {
   assert.equal(normPhone("0812-2222-0003").p, "6281222220003");
@@ -67,4 +67,12 @@ test("status kurir setelah semua alamat selesai", () => {
   assert.equal(returnLabel({ stops_done_at: "x", return_status: "menunggu" })[1], "Minta izin pulang");
   assert.equal(returnLabel({ stops_done_at: "x", return_status: "kembali", finished_at: "y" })[1], "Sudah kembali");
   assert.equal(returnLabel({ finished_at: "y" })[1], "Selesai"); // rute lama sebelum fitur ini
+});
+test("tanggal kedaluwarsa Fonnte", () => {
+  assert.equal(parseExpired("15 November 2026").getDate(), 15);
+  assert.equal(parseExpired("1 Agustus 2027").getMonth(), 7);
+  assert.equal(parseExpired("3 Mei 2027").getMonth(), 4);
+  assert.equal(parseExpired("1794600000").getFullYear(), 2026);
+  assert.equal(parseExpired("tidak jelas"), null);
+  assert.equal(daysLeft(parseExpired("15 November 2026"), new Date(2026, 10, 13, 22)), 2);
 });

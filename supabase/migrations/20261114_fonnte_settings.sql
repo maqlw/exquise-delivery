@@ -1,0 +1,3 @@
+-- Diterapkan ke Supabase (migrasi "fonnte_settings"):
+-- app_secrets (RLS tanpa policy: hanya fungsi server) menyimpan fonnte_token; settings 'wa_alert' = {"min_quota": 100}.
+-- Fungsi server baru: supabase/functions/fonnte (status, save, qr). notify memakai token app_secrets, fallback FONNTE_TOKEN.

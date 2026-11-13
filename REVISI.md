@@ -13,6 +13,7 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v013** | 14/11/2026 | Fonnte: ganti token dari Pengaturan, sisa kuota & kedaluwarsa + Top up di Dashboard, sambung ulang via QR/kode, peringatan otomatis. |
 | **v012** | 13/11/2026 | No HP disamarkan (081xxx1234) di link publik; browser selalu ambil versi website terbaru. |
 | **v011** | 13/11/2026 | Pesanan grup: 1 pemesan banyak penerima cukup 2 WhatsApp (awal & akhir) + 1 link pantau semua penerima. |
 | **v010** | 13/11/2026 | Saklar cek GPS kembali ke outlet; kotak cari & filter tanggal baru; menu HP melayang di bawah ala Dynamic Island. |
@@ -25,6 +26,12 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 | **v003** | 13/11/2026 | Kartu preview pakai logo Exquise (navy) di background krem + aksen terakota. |
 | **v002** | 13/11/2026 | Kartu preview WhatsApp untuk link lacak (gambar Exquise + nama penerima & produk). |
 | **v001** | 13/11/2026 | Titik awal riwayat versi. Berisi semua fitur sampai hari ini (rincian di bawah). |
+
+## v013 · 14/11/2026 · WhatsApp (Fonnte) di aplikasi
+- **Dashboard:** kartu WhatsApp berisi status terhubung, **sisa kuota**, **tanggal kedaluwarsa** (+ "x hari lagi"), tombol **Top up** (form langkah-langkah + tombol ke halaman pembayaran Fonnte) dan **Cek ulang**.
+- **Pengaturan → WhatsApp (Fonnte):** status, nomor terhubung (tersamar), ujung token yang dipakai; **ganti token** (dites ke Fonnte dulu, token lama tetap dipakai kalau ditolak; token tidak bisa dibaca lagi setelah disimpan); **sambung ulang** via **Scan QR** atau **Pakai kode**; batas **peringatan kuota** (default 100).
+- **Peringatan otomatis** di atas semua halaman admin: WhatsApp terputus, kuota di bawah batas, atau paket kedaluwarsa ≤ 3 hari.
+- Top up tidak memotong saldo dari aplikasi; pembayaran tetap di Fonnte.
 
 ## v012 · 13/11/2026 · privasi No HP & cache
 - Halaman publik (link lacak & link grup) menampilkan No HP pengirim/penerima **tersamar**, mis. `087xxx6465`. Penyamaran dilakukan di server, nomor lengkap tidak pernah dikirim ke halaman publik. Admin & kurir tetap melihat nomor lengkap.

@@ -404,3 +404,16 @@ ol.stops li:first-child{border-top:0}
 .grp-list a{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:12px 14px;border-radius:16px;background:var(--sunk);color:inherit;text-decoration:none;transition:background .2s,transform .2s}
 .grp-list a:hover{background:#e3ebe5;transform:translateX(2px)}
 .mono-soft{font:500 .92em var(--f-mono);color:var(--muted);white-space:nowrap}
+/* WhatsApp (Fonnte) */
+.wa-card{margin:12px 0 16px;padding:16px 18px;border-radius:22px;background:var(--surface);display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;box-shadow:0 1px 0 rgba(255,255,255,.9) inset}
+.wa-h{display:flex;align-items:center;gap:8px;flex:1 1 220px;min-width:0}.wa-h .meta{margin-left:4px}
+.wa-dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--bad);box-shadow:0 0 0 4px rgba(200,40,40,.12)}
+.wa-dot.on{background:var(--accent-hi);box-shadow:0 0 0 4px rgba(44,201,101,.18);animation:pulse 2s ease-out infinite}
+.wa-nums{display:flex;gap:24px;flex-wrap:wrap}.wa-nums>div{display:flex;flex-direction:column}
+.wa-nums span{font-size:11px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;font-weight:600}
+.wa-nums b{font:800 20px var(--f-display)}.wa-nums b.bad{color:var(--bad)}.wa-nums small{color:var(--muted);font-size:12px}
+.wa-set{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;align-items:end}
+.wa-qr img{width:240px;max-width:100%;border-radius:16px;background:#fff;padding:10px;box-shadow:0 8px 24px rgba(15,27,19,.12);margin-top:10px}
+.wa-code{margin-top:10px;padding:14px;border-radius:16px;background:var(--sunk)}.wa-code b{display:block;font-size:30px;letter-spacing:.12em;margin:4px 0}
+.steps{margin:8px 0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.wa-alert{margin-bottom:12px}

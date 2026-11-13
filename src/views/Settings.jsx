@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Field } from "../components/ui.jsx";
 import { AreaPicker } from "../components/AreaPicker.jsx";
-import { sb, saveSetting, updateOrder, toDb } from "../lib/api.js";
+import { sb, saveSetting, updateOrder, toDb, fonnteApi } from "../lib/api.js";
 import { TUNE, BATCH, recompute, normPhone } from "../lib/logic.js";
 
 const parseLL = v => { const m = String(v).match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/); return m && Math.abs(+m[1]) <= 90 && Math.abs(+m[2]) <= 180 ? [+m[1], +m[2]] : null; };
@@ -17,10 +17,11 @@ const TPL = [
 const VARS = { pemesan: "Ibu Sari", penerima: "Pak Budi", diterima_oleh: "Satpam Andi", alasan: "Penerima tidak ada", item: "Fraisier D18", kode: "GD2026110001", jumlah: "30", sampai: "28", gagal: "2", alamat: "Jl. Kemang Raya No. 8, Bangka, Jakarta Selatan 12730", link: "https://delivery.exquisepatisserie.space/lacak/contoh" };
 const fill = t => t.replace(/\{(\w+)\}/g, (m, v) => VARS[v] ?? m);
 
-export default function Settings({ origins, settings, orders, reload, toast }) {
+export default function Settings({ origins, settings, orders, reload, toast, wa, setWa, reloadWa }) {
   return (<>
     <h1>Pengaturan</h1><p className="sub">Lokasi asal, kata-kata WhatsApp, perkiraan waktu tempuh, dan alamat langganan.</p>
     <div className="stack" style={{ marginTop: 16 }}>
+      <Fonnte wa={wa} setWa={setWa} reloadWa={reloadWa} min={settings.wa_alert?.min_quota ?? 100} reload={reload} toast={toast} />
       <Origins key={Object.keys(origins).join()} origins={origins} reload={reload} toast={toast} />
       <Templates value={settings.wa_templates || {}} reload={reload} toast={toast} />
       <Tuning value={settings.tuning || TUNE} reload={reload} toast={toast} />
@@ -100,6 +101,40 @@ function Tuning({ value, reload, toast }) {
       {[1, 2, 3].map(b => <Field key={b} id={`sp-${b}`} label={`Kecepatan Batch ${b} (${BATCH[b].label}), km/jam`}><input id={`sp-${b}`} type="number" min="5" max="60" value={v.speed[b]} onChange={e => setV({ ...v, speed: { ...v.speed, [b]: e.target.value } })} /></Field>)}
       <Field id="stop" label="Waktu berhenti per alamat (menit)"><input id="stop" type="number" min="1" max="60" value={v.stop} onChange={e => setV({ ...v, stop: e.target.value })} /></Field></div>
     <button className="btn primary" onClick={save}>Simpan</button></section>);
+}
+
+function Fonnte({ wa, setWa, reloadWa, min, reload, toast }) {
+  const [tok, setTok] = useState(""), [busy, setBusy] = useState(""), [mode, setMode] = useState("qr"), [num, setNum] = useState(""), [res, setRes] = useState(null), [lim, setLim] = useState(min);
+  const run = async (k, fn) => { setBusy(k); try { await fn(); } catch (e) { toast(e.message); } setBusy(""); };
+  const save = () => run("save", async () => { const r = await fonnteApi("save", { token: tok }); setWa(r); setTok(""); toast(`Token baru tersimpan. Terhubung ke ${r.device || "perangkat Fonnte"}.`); });
+  const connect = () => run("qr", async () => { setRes(null); const r = await fonnteApi("qr", { type: mode, whatsapp: num }); setRes(r); if (!r.ok && !r.image && !r.code) toast(r.reason || "Fonnte tidak memberi QR/kode. Mungkin perangkat sudah terhubung."); });
+  const saveLim = () => run("lim", async () => { if (!(+lim >= 0)) throw new Error("Isi angka"); await saveSetting("wa_alert", { min_quota: +lim }); toast("Batas peringatan kuota disimpan"); reload(); });
+  return (<section className="panel"><h2>WhatsApp (Fonnte)</h2>
+    <div className="wa-set">
+      <div><span className="lbl">Status</span><div className="addr"><span className={`wa-dot ${wa?.ok && wa.connected ? "on" : "off"}`} aria-hidden="true" /> {!wa ? "Memuat…" : !wa.ok ? (wa.reason || "Bermasalah") : wa.connected ? "Terhubung" : "Terputus"}</div></div>
+      <div><span className="lbl">Nomor WhatsApp</span><div className="addr">{wa?.device || "–"}{wa?.name ? <span className="meta"> · {wa.name}</span> : ""}</div></div>
+      <div><span className="lbl">Token dipakai</span><div className="addr mono">{wa?.token_hint || "–"} <span className="meta">{wa?.source === "server" ? "(dari server)" : wa?.source === "pengaturan" ? "(dari Pengaturan)" : ""}</span></div></div>
+      <button className="btn ghost sm" disabled={busy === "cek"} onClick={() => run("cek", reloadWa)}>{busy === "cek" ? "Mengecek…" : "Cek ulang"}</button></div>
+
+    <h3 style={{ marginTop: 16 }}>Ganti token / nomor WhatsApp</h3>
+    <p className="note">Ambil token di dashboard Fonnte (menu Device → token perangkat). Token dites dulu ke Fonnte; kalau ditolak, token lama tetap dipakai. Setelah disimpan, token tidak bisa dilihat lagi.</p>
+    <div className="row"><input type="password" autoComplete="off" value={tok} onChange={e => setTok(e.target.value)} placeholder="Tempel token Fonnte baru" aria-label="Token Fonnte baru" style={{ flex: 1, minWidth: 200 }} />
+      <button className="btn primary" disabled={!tok.trim() || busy === "save"} onClick={save}>{busy === "save" ? "Mengetes…" : "Tes & simpan"}</button></div>
+
+    <h3 style={{ marginTop: 16 }}>Sambungkan ulang WhatsApp</h3>
+    <p className="note">Kalau status Terputus, sambungkan lagi dari HP outlet: WhatsApp → Perangkat tertaut → Tautkan perangkat.</p>
+    <div className="seg" role="group" aria-label="Cara menyambung"><button aria-pressed={mode === "qr"} onClick={() => { setMode("qr"); setRes(null); }}>Scan QR</button><button aria-pressed={mode === "code"} onClick={() => { setMode("code"); setRes(null); }}>Pakai kode</button></div>
+    <div className="row" style={{ marginTop: 8 }}>
+      {mode === "code" && <input inputMode="tel" value={num} onChange={e => setNum(e.target.value)} placeholder="No WhatsApp outlet, mis. 0812…" aria-label="Nomor WhatsApp untuk kode" style={{ flex: 1, minWidth: 180 }} />}
+      <button className="btn ok" disabled={busy === "qr"} onClick={connect}>{busy === "qr" ? "Meminta…" : mode === "qr" ? "Tampilkan QR" : "Minta kode"}</button></div>
+    {res?.image && <div className="wa-qr"><img src={res.image.startsWith("data:") ? res.image : `data:image/png;base64,${res.image}`} alt="QR untuk menyambungkan WhatsApp ke Fonnte" /><p className="note">Scan dari WhatsApp → Perangkat tertaut → Tautkan perangkat. QR berlaku sebentar; kalau kedaluwarsa, tekan Tampilkan QR lagi.</p></div>}
+    {res?.code && <div className="wa-code"><span className="lbl">Kode sambung</span><b className="mono">{res.code}</b><p className="note">Di WhatsApp: Perangkat tertaut → Tautkan perangkat → <b>Tautkan dengan nomor telepon</b>, lalu masukkan kode ini.</p></div>}
+    {res && !res.image && !res.code && <p className="note">{res.reason || "Tidak ada QR/kode dari Fonnte. Kalau status sudah Terhubung, tidak perlu disambungkan."}</p>}
+
+    <h3 style={{ marginTop: 16 }}>Peringatan kuota</h3>
+    <div className="row"><Field id="wa-min" label="Peringatkan kalau kuota di bawah (pesan)"><input id="wa-min" type="number" min="0" value={lim} onChange={e => setLim(e.target.value)} /></Field>
+      <button className="btn primary" style={{ alignSelf: "flex-end" }} disabled={busy === "lim"} onClick={saveLim}>Simpan</button></div>
+    <p className="note">Peringatan juga muncul kalau WhatsApp terputus atau paket kedaluwarsa dalam 3 hari.</p></section>);
 }
 
 function GroupMin({ value, reload, toast }) {

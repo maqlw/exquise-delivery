@@ -99,6 +99,11 @@ export async function lalamove(action, params = {}) {
   if (error) { let msg = error.message; try { msg = (await error.context.json()).error || msg; } catch { /* pakai pesan bawaan */ } throw new Error(msg); }
   return data;
 }
+export async function fonnteApi(action, params = {}) {
+  const { data, error } = await sb.functions.invoke("fonnte", { body: { action, ...params } });
+  if (error) { let msg = error.message; try { msg = (await error.context.json()).error || msg; } catch { /* pakai pesan bawaan */ } throw new Error(msg); }
+  return data;
+}
 export async function courierAccount(courierId, phone, pin) {
   const { data, error } = await sb.functions.invoke("courier-account", { body: { courier_id: courierId, phone, pin } });
   if (error) { let msg = error.message; try { msg = (await error.context.json()).error || msg; } catch { /* pakai pesan bawaan */ } throw new Error(msg); }

@@ -64,7 +64,9 @@ Deno.serve(async (req) => {
     if (group && sib.every(x => ["sampai", "gagal"].includes(x.status)) && await claim("done_sent_at")) msgs.push({ role: "pemesan", phone: o.sender_phone, text: gfill("grup_selesai"), col: "done_sent_at" });
   }
 
-  const token = Deno.env.get("FONNTE_TOKEN");
+  // Token dari Pengaturan (app_secrets) kalau ada, kalau tidak dari secret server.
+  const { data: sec } = await admin.from("app_secrets").select("value").eq("key", "fonnte_token").maybeSingle();
+  const token = sec?.value || Deno.env.get("FONNTE_TOKEN");
   const results = [];
   for (const m of msgs) {
     if (!m.phone) { results.push({ role: m.role, sent: false, reason: "tanpa No HP" }); continue; }
