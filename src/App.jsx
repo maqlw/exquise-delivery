@@ -115,7 +115,7 @@ function Admin({ email }) {
             <select id="ws-origin" value={ui.origin} onChange={e => setUi({ ...ui, origin: e.target.value })}>{Object.values(master.origins).map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></div></div>
         <div className="navlbl">Menu</div>
         <nav aria-label="Tampilan">{NAV.map(([k, t, ic]) => (
-          <a key={k} href={"#" + k} aria-label={t} title={t} aria-current={view === k ? "page" : undefined}><span className="ic" aria-hidden="true"><svg viewBox="0 0 24 24">{ic}</svg></span><span className="t">{t}</span>{k === "upload" && cek > 0 && <span className="badge">{cek}</span>}</a>))}</nav>
+          <a key={k} href={"#" + k} aria-label={t} title={t} aria-current={view === k ? "page" : undefined}><span className="ic" aria-hidden="true"><svg viewBox="0 0 24 24">{ic}</svg></span><span className="t" data-s={k === "upload" ? "Pengiriman" : k === "lacak" ? "Lacak" : t}>{t}</span>{k === "upload" && cek > 0 && <span className="badge">{cek}</span>}</a>))}</nav>
         <div className="spacer" />
         <div className="who"><span className="avatar">{email.slice(0, 2).toUpperCase()}</span><div style={{ minWidth: 0, flex: 1 }}><b>Admin</b><span style={{ overflowWrap: "anywhere" }}>{email}</span></div>
           <button className="btn sm" style={{ background: "#1d2a22", color: "#fff" }} onClick={() => api.sb.auth.signOut()}>Keluar</button></div>

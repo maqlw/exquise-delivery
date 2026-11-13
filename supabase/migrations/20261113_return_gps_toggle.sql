@@ -1,0 +1,3 @@
+-- Diterapkan ke Supabase (migrasi "return_gps_toggle"):
+-- settings 'return_gps' = {"check": true}; app_flags() untuk kurir membaca saklar;
+-- courier_return(route, lat?, lng?): cek jarak 500 m hanya kalau check = true.

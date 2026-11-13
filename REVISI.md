@@ -13,6 +13,7 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v010** | 13/11/2026 | Saklar cek GPS kembali ke outlet; kotak cari & filter tanggal baru; menu HP melayang di bawah ala Dynamic Island. |
 | **v009** | 13/11/2026 | Radius kembali ke outlet 500 m; transisi liquid glass di semua menu, tab & filter admin; tombol mata di login. |
 | **v008** | 13/11/2026 | Kurir wajib kembali ke outlet (cek GPS) atau minta izin pulang ke admin; tombol Kirim lebih jelas; transisi liquid glass antar batch. |
 | **v007** | 13/11/2026 | Tampilan HP admin: tombol Keluar di header, menu ikon saja (nama muncul di menu yang dibuka). |
@@ -22,6 +23,12 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 | **v003** | 13/11/2026 | Kartu preview pakai logo Exquise (navy) di background krem + aksen terakota. |
 | **v002** | 13/11/2026 | Kartu preview WhatsApp untuk link lacak (gambar Exquise + nama penerima & produk). |
 | **v001** | 13/11/2026 | Titik awal riwayat versi. Berisi semua fitur sampai hari ini (rincian di bawah). |
+
+## v010 · 13/11/2026 · saklar GPS, kotak cari, filter tanggal, menu melayang
+- **Pengaturan → Cek GPS saat kurir kembali ke outlet** (saklar ON/OFF, default ON). OFF: tombol "Saya sudah kembali di outlet" langsung diterima tanpa cek jarak (untuk HP dengan GPS kurang akurat). Hanya berlaku untuk langkah kembali ke outlet.
+- **Kotak cari baru** (Data pengiriman & Lacak pesanan): ikon kaca pembesar, sorotan hijau saat diketik, jumlah hasil, tombol hapus.
+- **Filter tanggal Laporan** jadi kartu "Dari → Sampai" bergaya kaca.
+- **HP admin:** menu (Dashboard, Pengiriman, Dispatch, …) melayang di bawah layar ala Dynamic Island, pil kaca di menu aktif; logo, lokasi asal & Keluar tetap di atas.
 
 ## v009 · 13/11/2026 · radius 500 m, liquid glass di admin, mata password
 - "Saya sudah kembali di outlet" diterima kalau GPS kurir **maks. 500 m** dari titik outlet (sebelumnya 1 km).

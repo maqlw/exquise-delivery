@@ -1,6 +1,6 @@
 import { useState } from "react";
 import * as XLSX from "xlsx";
-import { Pill, Phone } from "../components/ui.jsx";
+import { Pill, Phone, Search } from "../components/ui.jsx";
 import { AreaPicker } from "../components/AreaPicker.jsx";
 import { VIA, status, batchOf, routable, hhmm, dmy, readSheets, buildOrders, recompute } from "../lib/logic.js";
 import { saveUpload, updateOrder, toDb } from "../lib/api.js";
@@ -77,10 +77,9 @@ export default function Upload({ orders, origins, date, dates, setDate, ui, setU
       <div className="kpi ok"><span>Siap dirute</span><b>{ready}</b></div><div className="kpi warn"><span>Perlu dicek</span><b>{c.cek || 0}</b></div>
       <div className="kpi"><span>Dikirim / sampai</span><b>{c.jalan || 0} / {c.sampai || 0}</b></div><div className="kpi"><span>Tanpa No HP</span><b>{orders.filter(o => !o.phone && o.via !== "pickup").length}</b></div></div>
     {(c.cek || 0) > 0 && <div className="banner warn" style={{ marginTop: 12 }}>{c.cek} alamat belum ketemu di peta. Ketik nama kelurahan atau kode pos di kolom Alamat. Tempat langganan (mis. "BRI KCK") bisa disimpan di Pengaturan → Alamat dikenal supaya otomatis terbaca. <button className="btn ghost sm" disabled={busy} onClick={recheck}>Cek ulang alamat</button></div>}
-    <input type="search" value={q} onChange={e => setQ(e.target.value)} placeholder="Cari nama, kode, No HP, atau alamat…" aria-label="Cari pesanan" style={{ marginTop: 16, width: "100%", maxWidth: 480 }} />
+    <div style={{ marginTop: 16 }}><Search value={q} onChange={setQ} placeholder="Cari nama, kode, No HP, atau alamat…" count={vis.length} /></div>
     <div className="seg" role="group" aria-label="Saring" style={{ marginTop: 12 }}>
       {FILTERS.map(([k, t]) => <button key={k} aria-pressed={ui.filter === k} onClick={() => setUi({ ...ui, filter: k })}>{t} <small>{orders.filter(o => inFilter(o, k)).length}</small></button>)}</div>
-    {q && <p className="note" style={{ marginTop: 8 }}>{vis.length} hasil untuk "{q}"</p>}
     {sel.size > 0 && <div className="bulkbar" role="region" aria-label="Ubah pesanan terpilih">
       <b>{sel.size} dipilih</b>
       <select aria-label="Kirim lewat" value={bulk.via} onChange={e => setBulk({ ...bulk, via: e.target.value })}><option value="">Kiriman: tidak diubah</option>{Object.entries(VIA).map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select>

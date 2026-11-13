@@ -22,6 +22,7 @@ export default function Settings({ origins, settings, orders, reload, toast }) {
       <Origins key={Object.keys(origins).join()} origins={origins} reload={reload} toast={toast} />
       <Templates value={settings.wa_templates || {}} reload={reload} toast={toast} />
       <Tuning value={settings.tuning || TUNE} reload={reload} toast={toast} />
+      <ReturnGps value={settings.return_gps?.check !== false} reload={reload} toast={toast} />
       <Aliases value={settings.aliases || []} orders={orders} reload={reload} toast={toast} />
     </div>
   </>);
@@ -96,6 +97,19 @@ function Tuning({ value, reload, toast }) {
       {[1, 2, 3].map(b => <Field key={b} id={`sp-${b}`} label={`Kecepatan Batch ${b} (${BATCH[b].label}), km/jam`}><input id={`sp-${b}`} type="number" min="5" max="60" value={v.speed[b]} onChange={e => setV({ ...v, speed: { ...v.speed, [b]: e.target.value } })} /></Field>)}
       <Field id="stop" label="Waktu berhenti per alamat (menit)"><input id="stop" type="number" min="1" max="60" value={v.stop} onChange={e => setV({ ...v, stop: e.target.value })} /></Field></div>
     <button className="btn primary" onClick={save}>Simpan</button></section>);
+}
+
+function ReturnGps({ value, reload, toast }) {
+  const [on, setOn] = useState(value), [busy, setBusy] = useState(false);
+  async function flip() {
+    setBusy(true);
+    try { await saveSetting("return_gps", { check: !on }); setOn(!on); toast(!on ? "Cek GPS saat kembali ke outlet: ON" : "Cek GPS saat kembali ke outlet: OFF"); reload(); } catch (e) { toast("Gagal: " + e.message); }
+    setBusy(false);
+  }
+  return (<section className="panel"><div className="row between" style={{ flexWrap: "nowrap", gap: 16 }}>
+    <div><h2>Cek GPS saat kurir kembali ke outlet</h2>
+      <p className="note">{on ? "ON: tombol \"Saya sudah kembali di outlet\" hanya diterima kalau GPS kurir maks. 500 m dari outlet." : "OFF: kurir bisa menyelesaikan rute tanpa cek jarak. Pakai kalau GPS HP kurir sedang tidak akurat."} Pengiriman ke alamat tidak terpengaruh.</p></div>
+    <button className="switch" role="switch" aria-checked={on} aria-label="Cek GPS saat kembali ke outlet" disabled={busy} onClick={flip}><span /></button></div></section>);
 }
 
 function Aliases({ value, orders, reload, toast }) {

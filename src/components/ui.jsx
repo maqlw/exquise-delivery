@@ -45,6 +45,15 @@ export function useToast() {
   return [msg ? <div className="toast" role="status">{msg}</div> : null, show];
 }
 
+// Kotak cari: ikon kaca pembesar, tombol hapus, jumlah hasil.
+export const Search = ({ value, onChange, placeholder, label = "Cari pesanan", count }) => (
+  <div className="searchbox">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+    <input type="search" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} aria-label={label} />
+    {value && count != null && <span className="sb-count">{count} hasil</span>}
+    {value && <button type="button" className="sb-clear" aria-label="Hapus pencarian" onClick={() => onChange("")}>×</button>}
+  </div>);
+
 // Pilihan bergaya "liquid glass": pil kaca meluncur ke tombol aktif dengan efek memantul.
 export function GlassSeg({ items, value, onChange, label }) {
   const ref = useRef(null), pillRef = useRef(null), [pill, setPill] = useState(null);

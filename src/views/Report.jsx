@@ -25,10 +25,12 @@ export default function Report({ origins }) {
   const active = PRESETS.find(([k]) => preset(k).join() === range.join())?.[0];
   const head = (<>
     <h1>Laporan</h1><p className="sub">Rekap pengiriman berdasarkan tanggal kirim.</p>
-    <div className="row" style={{ marginTop: 16, alignItems: "end" }}>
+    <div className="row" style={{ marginTop: 16, alignItems: "center", gap: 12 }}>
       <div className="seg" role="group" aria-label="Rentang cepat">{PRESETS.map(([k, t]) => <button key={k} aria-pressed={active === k} onClick={() => setRange(preset(k))}>{t}</button>)}</div>
-      <label className="lbl">Dari <input type="date" value={range[0]} max={range[1]} onChange={e => setRange([e.target.value, range[1]])} /></label>
-      <label className="lbl">Sampai <input type="date" value={range[1]} min={range[0]} onChange={e => setRange([range[0], e.target.value])} /></label></div></>);
+      <div className="daterange" role="group" aria-label="Rentang tanggal">
+        <label className="dr-f"><span>Dari</span><input type="date" value={range[0]} max={range[1]} onChange={e => setRange([e.target.value, range[1]])} /></label>
+        <span className="dr-arrow" aria-hidden="true">→</span>
+        <label className="dr-f"><span>Sampai</span><input type="date" value={range[1]} min={range[0]} onChange={e => setRange([range[0], e.target.value])} /></label></div></div></>);
   if (err) return <>{head}<div className="banner bad" style={{ marginTop: 12 }}>Gagal memuat laporan: {err}</div></>;
   if (!rows) return <>{head}<p className="sub" style={{ marginTop: 16 }}><span className="spin" /> Memuat…</p></>;
   const st = o => o.via === "pickup" ? "pickup" : ["sampai", "gagal", "jalan"].includes(o.status) ? o.status : o.via !== "internal" ? "pihak3" : "proses";

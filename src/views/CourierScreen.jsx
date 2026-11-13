@@ -11,10 +11,10 @@ const PING_MS = 30000;
 export default function CourierScreen() {
   const [toastEl, toast] = useToast();
   const [me, setMe] = useState(null), [origins, setOrigins] = useState({}), [routes, setRoutes] = useState(null), [sel, setSel] = useState(null);
-  const [modal, setModal] = useState(null), [fail, setFail] = useState(null), [pick, setPick] = useState(null), [busy, setBusy] = useState(false), [gps, setGps] = useState("");
+  const [gpsCheck, setGpsCheck] = useState(true), [modal, setModal] = useState(null), [fail, setFail] = useState(null), [pick, setPick] = useState(null), [busy, setBusy] = useState(false), [gps, setGps] = useState("");
   const load = useCallback(async () => {
-    const [{ data: c }, { data: og }] = await Promise.all([sb.from("couriers").select("*").maybeSingle(), sb.from("origins").select("*")]);
-    setMe(c); setOrigins(Object.fromEntries((og || []).map(o => [o.id, o])));
+    const [{ data: c }, { data: og }, { data: fl }] = await Promise.all([sb.from("couriers").select("*").maybeSingle(), sb.from("origins").select("*"), sb.rpc("app_flags")]);
+    setMe(c); setGpsCheck(fl?.return_gps !== false); setOrigins(Object.fromEntries((og || []).map(o => [o.id, o])));
     if (!c) return setRoutes([]);
     const { data } = await sb.from("routes").select("*, route_stops(seq, eta_min, orders(*))").eq("courier_id", c.id).order("ship_date", { ascending: false }).order("batch").limit(9);
     const today = new Date().toDateString(); // rute yang baru selesai hari ini tetap tampil sebagai ringkasan
@@ -59,13 +59,16 @@ export default function CourierScreen() {
     toast(n ? `${n} WhatsApp terkirim ke ${o.recipient} & pemesan` : "Status dikirim. Tidak ada No HP, WhatsApp tidak terkirim.");
   });
   const back = () => run(async () => {
-    if (!navigator.geolocation) throw new Error("HP ini tidak mendukung GPS.");
+    if (!navigator.geolocation) { if (gpsCheck) throw new Error("HP ini tidak mendukung GPS."); }
+    // Cek GPS dimatikan admin: posisi tetap dicoba (untuk peta), tapi kalau gagal tetap boleh selesai.
+    const p = gpsCheck || !navigator.geolocation ? null : await new Promise(ok => navigator.geolocation.getCurrentPosition(ok, () => ok(lastPos.current), { timeout: 5000, maximumAge: 60000 }));
+    if (!gpsCheck) { const { error } = await sb.rpc("courier_return", { p_route: r.id, p_lat: p?.coords.latitude ?? null, p_lng: p?.coords.longitude ?? null }); if (error) throw new Error(error.message); return; }
     // Posisi baru; kalau gagal (mis. di dalam gedung), pakai posisi terakhir dari GPS yang sedang berjalan (maks 2 menit).
-    const p = await new Promise((ok, no) => navigator.geolocation.getCurrentPosition(ok, e => {
+    const q = await new Promise((ok, no) => navigator.geolocation.getCurrentPosition(ok, e => {
       const lp = lastPos.current; if (lp && Date.now() - lp.timestamp < 120000) return ok(lp);
       no(new Error(e.code === 1 ? "Izin lokasi ditolak. Aktifkan lokasi supaya sistem bisa memastikan kamu sudah di outlet." : "Sinyal GPS belum didapat. Coba di dekat pintu/luar gedung, lalu tekan lagi."));
     }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }));
-    const { error } = await sb.rpc("courier_return", { p_route: r.id, p_lat: p.coords.latitude, p_lng: p.coords.longitude }); if (error) throw new Error(error.message);
+    const { error } = await sb.rpc("courier_return", { p_route: r.id, p_lat: q.coords.latitude, p_lng: q.coords.longitude }); if (error) throw new Error(error.message);
   }, `Tercatat sudah kembali di ${org?.short}. Terima kasih!`);
   const home = () => run(async () => {
     const { error } = await sb.rpc("courier_request_home", { p_route: r.id, p_note: note }); if (error) throw new Error(error.message);
@@ -113,10 +116,10 @@ export default function CourierScreen() {
       : <section className="back-card"><span className="eyebrow" style={{ color: "#bc5539" }}>Semua alamat selesai · {done.filter(o => o.ship === "sampai").length} sampai, {done.filter(o => o.ship === "gagal").length} gagal</span>
           {r.return_status === "menunggu" ? <><h2>Menunggu persetujuan admin untuk langsung pulang</h2>
               <p className="sub">Halaman ini cek otomatis tiap 20 detik. Kalau ternyata kamu kembali ke {org?.short}, tekan tombol di bawah.</p>
-              <button className="btn primary big" disabled={busy} onClick={back}>{busy ? "Mengecek lokasi…" : `Saya sudah kembali di ${org?.short}`}</button></>
+              <button className="btn primary big" disabled={busy} onClick={back}>{busy ? (gpsCheck ? "Mengecek lokasi…" : "Menyimpan…") : `Saya sudah kembali di ${org?.short}`}</button></>
             : <><h2>{r.return_status === "ditolak" ? `Admin minta kamu kembali ke ${org?.short}` : `Kembali ke ${org?.short}`}</h2>
-              <p className="sub">Tekan saat sudah sampai di {org?.short}. Lokasi GPS kamu dicek, maksimal 500 m dari outlet.</p>
-              <button className="btn primary big" disabled={busy} onClick={back}>{busy ? "Mengecek lokasi…" : `Saya sudah kembali di ${org?.short}`}</button>
+              <p className="sub">Tekan saat sudah sampai di {org?.short}.{gpsCheck ? " Lokasi GPS kamu dicek, maksimal 500 m dari outlet." : ""}</p>
+              <button className="btn primary big" disabled={busy} onClick={back}>{busy ? (gpsCheck ? "Mengecek lokasi…" : "Menyimpan…") : `Saya sudah kembali di ${org?.short}`}</button>
               {r.return_status !== "ditolak" && (homeForm ? <div className="stack" style={{ gap: 8 }}>
                   <label className="lbl" htmlFor="home-note">Alasan langsung pulang (opsional)</label>
                   <input id="home-note" value={note} onChange={e => setNote(e.target.value)} placeholder="Mis. rumah searah alamat terakhir" />

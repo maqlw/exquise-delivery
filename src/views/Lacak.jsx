@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import MapSVG from "../components/MapSVG.jsx";
-import { Pill, Phone, Empty, Timeline, StatusPill } from "../components/ui.jsx";
+import { Pill, Phone, Empty, Timeline, StatusPill, Search } from "../components/ui.jsx";
 import { HistoryList, WaBubbles } from "../components/OrderModals.jsx";
 import { VIA, status, hhmm, dmy, fmtTime, km, minutes, TUNE } from "../lib/logic.js";
 import { trackUrl, addressHistory, waLogs } from "../lib/api.js";
@@ -64,7 +64,7 @@ export default function Lacak(ctx) {
   return (<>
     <h1>Lacak pesanan</h1><p className="sub">Cari pesanan, lalu klik untuk melihat alurnya, posisi kurir, dan detail lainnya.</p>
     <div className={`lacak ${sel ? "has-sel" : ""}`}>
-      <section className="panel list"><input type="search" placeholder="Cari kode, penerima, pemesan, atau No HP" value={ui.q} onChange={e => setUi({ ...ui, q: e.target.value })} aria-label="Cari pesanan" />
+      <section className="panel list"><Search value={ui.q} onChange={v => setUi({ ...ui, q: v })} placeholder="Cari kode, penerima, pemesan, atau No HP" />
         <div className="tablewrap"><table className="rtable ltable"><thead><tr><th>Kode</th><th>Penerima</th><th>Pemesan</th><th>Status</th><th>Kiriman</th><th /></tr></thead><tbody>
           {rows.map(o => { const info = courierInfo(P, couriers, routes, o); return (
             <tr key={o.id} className={sel === o ? "sel" : ""} onClick={() => setUi({ ...ui, lacak: o.id })}>
