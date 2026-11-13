@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normPhone, parseDeadline, parseDate, geocode, buildOrders, plan, status } from "./logic.js";
+import { normPhone, parseDeadline, parseDate, geocode, buildOrders, plan, status, returnLabel } from "./logic.js";
 
 test("No HP dirapikan ke 62", () => {
   assert.equal(normPhone("0812-2222-0003").p, "6281222220003");
@@ -60,4 +60,11 @@ test("pesanan tanpa batch tidak dilempar ke batch yang sudah dikirim", () => {
   r.orders[0].id = "x";
   const P = plan(r.orders, { ck: { lat: -6.1525, lng: 106.8345 } }, [{ id: "k1", origin_id: "ck", active: true }], { "ck|1": { k1: [] } }).ck;
   assert.equal(Object.values(P[2].routes).flatMap(x => x.seq).length, 1);
+});
+test("status kurir setelah semua alamat selesai", () => {
+  assert.equal(returnLabel({ stops_done_at: null, finished_at: null }), null);
+  assert.equal(returnLabel({ stops_done_at: "x", finished_at: null })[1], "Menuju outlet");
+  assert.equal(returnLabel({ stops_done_at: "x", return_status: "menunggu" })[1], "Minta izin pulang");
+  assert.equal(returnLabel({ stops_done_at: "x", return_status: "kembali", finished_at: "y" })[1], "Sudah kembali");
+  assert.equal(returnLabel({ finished_at: "y" })[1], "Selesai"); // rute lama sebelum fitur ini
 });

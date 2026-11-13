@@ -13,6 +13,7 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v008** | 13/11/2026 | Kurir wajib kembali ke outlet (cek GPS) atau minta izin pulang ke admin; tombol Kirim lebih jelas; transisi liquid glass antar batch. |
 | **v007** | 13/11/2026 | Tampilan HP admin: tombol Keluar di header, menu ikon saja (nama muncul di menu yang dibuka). |
 | **v006** | 13/11/2026 | Perbaikan bug: pesanan tambahan di batch yang sudah dikirim sekarang bisa di-dispatch. |
 | **v005** | 13/11/2026 | Audit keamanan: tidak ada rahasia di website; data lokasi outlet ditutup dari akun asing. |
@@ -20,6 +21,13 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 | **v003** | 13/11/2026 | Kartu preview pakai logo Exquise (navy) di background krem + aksen terakota. |
 | **v002** | 13/11/2026 | Kartu preview WhatsApp untuk link lacak (gambar Exquise + nama penerima & produk). |
 | **v001** | 13/11/2026 | Titik awal riwayat versi. Berisi semua fitur sampai hari ini (rincian di bawah). |
+
+## v008 · 13/11/2026 · kembali ke outlet & izin pulang
+- **Rute kurir internal baru selesai setelah kembali ke outlet.** Setelah alamat terakhir, HP kurir menampilkan kartu "Kembali ke CK/Depok": tombol **"Saya sudah kembali di …"** mengecek GPS (harus ≤ 1 km dari titik outlet). GPS tetap terkirim selama perjalanan balik, jadi leader bisa memantau.
+- **Langsung pulang perlu izin admin:** kurir tekan "Langsung pulang (perlu izin admin)" + alasan opsional. Di semua halaman admin muncul panel "Minta izin langsung pulang" dengan tombol **Setujui** (rute selesai) / **Tolak, kembali ke outlet** (kurir wajib kembali). HP kurir cek keputusan otomatis tiap 20 detik.
+- Status kurir di Dispatch & Dashboard: Menuju outlet / Minta izin pulang / Sudah kembali / Pulang (disetujui).
+- Tombol **Kirim · kabari pemesan & penerima** jadi hijau terang (sebelumnya menyatu dengan kartu gelap).
+- Pilihan batch di HP kurir bergaya **liquid glass**: pil kaca meluncur & memantul, isi rute masuk meluncur + memudar sesuai arah.
 
 ## v007 · 13/11/2026 · header HP admin
 - Tombol **Keluar** sekarang ada di kanan atas header saat dibuka di HP (sebelumnya tersembunyi).

@@ -1,0 +1,5 @@
+-- Diterapkan langsung ke Supabase (migrasi "return_to_base"); salinan ringkas untuk riwayat.
+-- routes: stops_done_at, return_status (kembali/menunggu/disetujui/ditolak), return_requested_at, return_note, returned_at, return_by.
+-- courier_mark: saat semua alamat beres -> stops_done_at (bukan finished_at).
+-- courier_return(route, lat, lng): GPS harus <= 1 km dari outlet -> finished_at.
+-- courier_request_home(route, note): return_status = 'menunggu'; admin setujui (finished_at) / tolak lewat tabel routes.

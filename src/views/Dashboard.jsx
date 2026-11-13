@@ -1,6 +1,6 @@
 import MapSVG from "../components/MapSVG.jsx";
 import { Pill, Empty, initials } from "../components/ui.jsx";
-import { BATCH, VIA, status, hhmm, fmtKm, dmy } from "../lib/logic.js";
+import { BATCH, VIA, status, hhmm, fmtKm, dmy, returnLabel } from "../lib/logic.js";
 
 const Mini = ({ vals, color }) => { const m = Math.max(1, ...vals); return <span className="mini" aria-hidden="true">{vals.map((v, i) => <i key={i} style={{ height: 8 + 36 * v / m, background: color(i) }} />)}</span>; };
 
@@ -56,7 +56,7 @@ export default function Dashboard({ orders, origins, couriers, P, date, dates, s
           {active.map(c => { const mine = routed.filter(x => x.c.id === c.id); if (!mine.length) return null;
             const rs = [1, 2, 3].map(x => P[c.origin_id][x].routes[c.id]), kmN = rs.reduce((a, r) => a + r.km, 0), late = rs.reduce((a, r) => a + r.late, 0);
             const done = mine.filter(x => ["sampai", "gagal"].includes(x.o.ship)).length, going = mine.some(x => x.o.ship === "jalan"), sentAny = mine.some(x => x.o.ship);
-            const st = going ? ["jalan", "Dalam perjalanan"] : done === mine.length ? ["sampai", "Selesai"] : sentAny ? ["siap", "Siap berangkat"] : ["", "Menunggu rute"];
+            const st = going ? ["jalan", "Dalam perjalanan"] : done === mine.length ? (returnLabel(routes.filter(x => x.courier_id === c.id).sort((p, q) => q.batch - p.batch)[0]) || ["sampai", "Selesai"]) : sentAny ? ["siap", "Siap berangkat"] : ["", "Menunggu rute"];
             return (<tr key={c.id}><td><div className="who-cell"><span className="avatar" style={{ background: c.color }}>{initials(c.name)}</span><div><div className="addr">{c.name}</div><div className="meta">{origins[c.origin_id].short}</div></div></div></td>
               <td className="mono">{mine.length}</td><td className="mono" style={{ whiteSpace: "nowrap" }}>{[1, 2, 3].map(x => mine.filter(y => y.b === x).length).join(" · ")}</td>
               <td><div className="row" style={{ gap: 10 }}><span className="prog"><i style={{ width: `${Math.round(done / mine.length * 100)}%` }} /></span><span className="mono">{done}/{mine.length}</span></div></td>

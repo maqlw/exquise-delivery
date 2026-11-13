@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import MapSVG from "../components/MapSVG.jsx";
-import { Pill, StopInfo, Logo } from "../components/ui.jsx";
+import { Pill, StopInfo, Logo, GlassSeg } from "../components/ui.jsx";
 import { SampaiForm } from "../components/OrderModals.jsx";
 import { sb, fromDb, uploadProof, notify } from "../lib/api.js";
-import { BATCH, FAIL_REASONS, LABEL, hhmm, dmy, todayYmd } from "../lib/logic.js";
+import { BATCH, FAIL_REASONS, LABEL, hhmm, dmy, todayYmd, fmtTime } from "../lib/logic.js";
 import { useToast } from "../components/ui.jsx";
 
 const PING_MS = 30000;
@@ -23,14 +23,18 @@ export default function CourierScreen() {
     setRoutes(list); setSel(s => list.some(r => r.id === s) ? s : (list.find(r => !r.finished_at) || list[0])?.id || null);
   }, []);
   useEffect(() => { load(); }, [load]);
+  // Saat menunggu izin pulang, cek keputusan admin tiap 20 detik.
+  const waiting = routes?.some(r => r.return_status === "menunggu" && !r.finished_at);
+  useEffect(() => { if (!waiting) return; const t = setInterval(load, 20000); return () => clearInterval(t); }, [waiting, load]);
+  const [homeForm, setHomeForm] = useState(false), [note, setNote] = useState(""), prevIdx = useRef(0), [dir, setDir] = useState("swap-r");
 
   // GPS dikirim selama ada rute yang sedang berjalan dan halaman ini terbuka.
-  const active = routes?.some(r => r.started_at && !r.finished_at), last = useRef(0);
+  const active = routes?.some(r => r.started_at && !r.finished_at), last = useRef(0), lastPos = useRef(null);
   useEffect(() => {
     if (!active) return;
     if (!navigator.geolocation) { setGps("HP ini tidak mendukung GPS."); return; }
     const id = navigator.geolocation.watchPosition(async p => {
-      setGps("GPS aktif");
+      setGps("GPS aktif"); lastPos.current = p;
       if (Date.now() - last.current < PING_MS) return;
       last.current = Date.now();
       await sb.rpc("courier_ping", { p_lat: p.coords.latitude, p_lng: p.coords.longitude });
@@ -38,6 +42,7 @@ export default function CourierScreen() {
     return () => navigator.geolocation.clearWatch(id);
   }, [active]);
 
+  const choose = id => { const i = routes.findIndex(x => x.id === id); setDir(i >= prevIdx.current ? "swap-r" : "swap-l"); prevIdx.current = i; setSel(id); };
   if (!routes) return <div className="login"><span className="spin" aria-label="Memuat" /></div>;
   const r = routes.find(x => x.id === sel), org = r && origins[r.origin_id];
   const left = r ? r.stops.filter(o => ["siap", "jalan"].includes(o.ship)) : [];
@@ -53,6 +58,19 @@ export default function CourierScreen() {
     const res = await notify(o.id, "kirim"), n = (res.results || []).filter(x => x.sent).length;
     toast(n ? `${n} WhatsApp terkirim ke ${o.recipient} & pemesan` : "Status dikirim. Tidak ada No HP, WhatsApp tidak terkirim.");
   });
+  const back = () => run(async () => {
+    if (!navigator.geolocation) throw new Error("HP ini tidak mendukung GPS.");
+    // Posisi baru; kalau gagal (mis. di dalam gedung), pakai posisi terakhir dari GPS yang sedang berjalan (maks 2 menit).
+    const p = await new Promise((ok, no) => navigator.geolocation.getCurrentPosition(ok, e => {
+      const lp = lastPos.current; if (lp && Date.now() - lp.timestamp < 120000) return ok(lp);
+      no(new Error(e.code === 1 ? "Izin lokasi ditolak. Aktifkan lokasi supaya sistem bisa memastikan kamu sudah di outlet." : "Sinyal GPS belum didapat. Coba di dekat pintu/luar gedung, lalu tekan lagi."));
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }));
+    const { error } = await sb.rpc("courier_return", { p_route: r.id, p_lat: p.coords.latitude, p_lng: p.coords.longitude }); if (error) throw new Error(error.message);
+  }, `Tercatat sudah kembali di ${org?.short}. Terima kasih!`);
+  const home = () => run(async () => {
+    const { error } = await sb.rpc("courier_request_home", { p_route: r.id, p_note: note }); if (error) throw new Error(error.message);
+    setHomeForm(false); setNote("");
+  }, "Permintaan langsung pulang dikirim ke admin");
   const mark = async (o, st, extra) => {
     const { error } = await sb.rpc("courier_mark", { p_order: o.id, p_status: st, p_reason: extra.reason || null, p_proof: extra.path || null, p_receiver_name: extra.name || null, p_receiver_relation: extra.rel || null });
     if (error) throw new Error(error.message);
@@ -65,9 +83,9 @@ export default function CourierScreen() {
   return (<div style={{ minHeight: "100%", background: "var(--bg)" }}>{header}<main>
     <h1>Halo, {me?.name || "kurir"}</h1>
     <p className="sub">{active ? (gps || "Menyalakan GPS…") : "GPS akan aktif setelah kamu menekan Mulai jalan."}</p>
-    {routes.length > 1 && <div className="seg" role="group" aria-label="Pilih rute" style={{ marginTop: 12 }}>{routes.map(x => <button key={x.id} aria-pressed={x.id === sel} onClick={() => setSel(x.id)}>{dmy(x.ship_date)} · Batch {x.batch}</button>)}</div>}
+    {routes.length > 1 && <div style={{ marginTop: 12 }}><GlassSeg label="Pilih rute" value={sel} onChange={choose} items={routes.map(x => [x.id, `${dmy(x.ship_date)} · Batch ${x.batch}`])} /></div>}
     {!r ? <section className="panel" style={{ marginTop: 16 }}><h2>Belum ada rute untuk kamu hari ini</h2><p className="sub">Tunggu admin mengirim rute, lalu tarik halaman ini untuk memuat ulang.</p><button className="btn primary" onClick={load}>Muat ulang</button></section>
-    : <div className="grid"><div className="stack">
+    : <div className={`grid ${dir}`} key={sel}><div className="stack">
       {!r.started_at ? <section className="panel"><h2>Batch {r.batch} · {r.stops.length} alamat · berangkat {hhmm(BATCH[r.batch].start)} dari {org?.short}</h2>
           <ol className="stops">{r.stops.map((o, i) => <li key={o.id}><span className="num" style={{ background: me.color }}>{i + 1}</span><StopInfo o={o} />
             <div className="eta">{o.eta != null ? hhmm(o.eta) : ""}{o.deadline != null && <Pill s="warn">batas {hhmm(o.deadline)}</Pill>}</div></li>)}</ol>
@@ -90,7 +108,21 @@ export default function CourierScreen() {
                 <select id="pick" value="" onChange={e => e.target.value && setPick(e.target.value)}><option value="">Pilih alamat lain…</option>
                   {others.map(o => <option key={o.id} value={o.id}>{r.stops.indexOf(o) + 1}. {o.recipient} · {o.address.slice(0, 50)}</option>)}</select></div>}</>
             : <div className="row"><button className="btn ok big" style={{ flex: 1 }} disabled={busy} onClick={() => setModal(next)}>Sudah sampai</button><button className="btn ghost" onClick={() => setFail(next.id)}>Gagal kirim</button></div>}</section>
-      : <section className="panel"><h2>Batch {r.batch} selesai</h2><p className="sub">{done.filter(o => o.ship === "sampai").length} sampai, {done.filter(o => o.ship === "gagal").length} gagal. Kembali ke {org?.short}.</p></section>}
+      : r.finished_at ? <section className="panel"><h2>Batch {r.batch} selesai</h2><p className="sub">{done.filter(o => o.ship === "sampai").length} sampai, {done.filter(o => o.ship === "gagal").length} gagal.
+          {r.return_status === "kembali" ? ` Sudah kembali di ${org?.short} jam ${fmtTime(r.returned_at)}.` : r.return_status === "disetujui" ? " Langsung pulang, disetujui admin." : ""}</p></section>
+      : <section className="back-card"><span className="eyebrow" style={{ color: "#bc5539" }}>Semua alamat selesai · {done.filter(o => o.ship === "sampai").length} sampai, {done.filter(o => o.ship === "gagal").length} gagal</span>
+          {r.return_status === "menunggu" ? <><h2>Menunggu persetujuan admin untuk langsung pulang</h2>
+              <p className="sub">Halaman ini cek otomatis tiap 20 detik. Kalau ternyata kamu kembali ke {org?.short}, tekan tombol di bawah.</p>
+              <button className="btn primary big" disabled={busy} onClick={back}>{busy ? "Mengecek lokasi…" : `Saya sudah kembali di ${org?.short}`}</button></>
+            : <><h2>{r.return_status === "ditolak" ? `Admin minta kamu kembali ke ${org?.short}` : `Kembali ke ${org?.short}`}</h2>
+              <p className="sub">Tekan saat sudah sampai di {org?.short}. Lokasi GPS kamu dicek, harus di sekitar outlet.</p>
+              <button className="btn primary big" disabled={busy} onClick={back}>{busy ? "Mengecek lokasi…" : `Saya sudah kembali di ${org?.short}`}</button>
+              {r.return_status !== "ditolak" && (homeForm ? <div className="stack" style={{ gap: 8 }}>
+                  <label className="lbl" htmlFor="home-note">Alasan langsung pulang (opsional)</label>
+                  <input id="home-note" value={note} onChange={e => setNote(e.target.value)} placeholder="Mis. rumah searah alamat terakhir" />
+                  <div className="row"><button className="btn home big" style={{ flex: 1 }} disabled={busy} onClick={home}>Kirim permintaan ke admin</button><button className="btn ghost" onClick={() => setHomeForm(false)}>Batal</button></div></div>
+                : <button className="btn home big" onClick={() => setHomeForm(true)}>Langsung pulang (perlu izin admin)</button>)}</>}
+        </section>}
       {done.length > 0 && <section className="panel"><h2>Sudah dikunjungi</h2><ol className="stops">{done.map(o => <li key={o.id}><span className="num" style={{ background: `var(--${o.ship === "sampai" ? "ok" : "bad"})` }}>{r.stops.indexOf(o) + 1}</span>
         <div><div className="addr">{o.recipient}</div><div className="meta">{o.address}{o.receivedBy ? ` · diterima ${o.receivedBy}` : ""}{o.failReason ? ` · ${o.failReason}` : ""}</div></div><Pill s={o.ship}>{LABEL[o.ship]}</Pill></li>)}</ol></section>}
     </div>

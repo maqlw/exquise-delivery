@@ -1,7 +1,7 @@
 import { useState } from "react";
 import MapSVG from "../components/MapSVG.jsx";
 import { Pill, Empty, StopInfo } from "../components/ui.jsx";
-import { BATCH, VIA, status, hhmm, fmtKm, dmy } from "../lib/logic.js";
+import { BATCH, VIA, status, hhmm, fmtKm, dmy, returnLabel } from "../lib/logic.js";
 import { updateOrder, sendRoutes, sendExtra, lalamove } from "../lib/api.js";
 
 export default function Dispatch({ orders, origins, couriers, P, date, ui, setUi, reload, toast, routes, positions, act }) {
@@ -33,7 +33,8 @@ export default function Dispatch({ orders, origins, couriers, P, date, ui, setUi
   }
   // Kartu per kurir; locked = rute sudah di HP kurir (tidak bisa dipindah/diedit).
   const cards = (R, locked) => <div className="couriers">{list.map(c => { const r = R[c.id]; return (
-        <article className="cc" key={c.id}><div className="cc-h"><span className="dot" style={{ background: c.color }} /><b>{c.name}</b><span className="meta">{r.seq.length} alamat · {fmtKm(r.km)}{r.seq.length ? ` · selesai ${hhmm(r.end)}` : ""}</span>{r.late > 0 && <Pill s="late">{r.late} terlambat</Pill>}</div>
+        <article className="cc" key={c.id}><div className="cc-h"><span className="dot" style={{ background: c.color }} /><b>{c.name}</b><span className="meta">{r.seq.length} alamat · {fmtKm(r.km)}{r.seq.length ? ` · selesai ${hhmm(r.end)}` : ""}</span>{r.late > 0 && <Pill s="late">{r.late} terlambat</Pill>}
+          {locked && (x => x && <Pill s={x[0]}>{x[1]}</Pill>)(returnLabel(routes.find(x => x.courier_id === c.id && x.batch === b)))}</div>
           {r.seq.length ? <ol className="stops">{r.seq.map((o, i) => { const e = r.eta[o.code], isLate = o.deadline != null && e > o.deadline; return (
             <li key={o.id}><span className="num" style={{ background: isLate ? "var(--bad)" : c.color }}>{i + 1}</span>
               <div><StopInfo o={o} />

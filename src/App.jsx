@@ -3,6 +3,7 @@ import * as api from "./lib/api.js";
 import { plan, status, todayYmd } from "./lib/logic.js";
 import { useToast, Logo } from "./components/ui.jsx";
 import { WilList } from "./components/AreaPicker.jsx";
+import HomeRequests from "./components/HomeRequests.jsx";
 import { OrderForm, UpdateChoice, SampaiForm, ConfirmDelete, WaResult } from "./components/OrderModals.jsx";
 import Login from "./views/Login.jsx";
 import Dashboard from "./views/Dashboard.jsx";
@@ -116,7 +117,7 @@ function Admin({ email }) {
         <div className="who"><span className="avatar">{email.slice(0, 2).toUpperCase()}</span><div style={{ minWidth: 0, flex: 1 }}><b>Admin</b><span style={{ overflowWrap: "anywhere" }}>{email}</span></div>
           <button className="btn sm" style={{ background: "#1d2a22", color: "#fff" }} onClick={() => api.sb.auth.signOut()}>Keluar</button></div>
       </aside>
-      <div className="viewport"><main><View {...ctx} /></main></div>
+      <div className="viewport"><main><HomeRequests {...ctx} /><View {...ctx} /></main></div>
     </div>
       {modal?.kind === "form" && <OrderForm order={modal.order} history={modal.history} origins={master.origins} defaults={{ ymd: date, origin: ui.origin, via: "internal" }} onClose={close} onSave={o => act.saveForm(o, modal.order)} />}
       {modal?.kind === "update" && <UpdateChoice order={modal.order} onClose={close} onKirim={() => act.kirim(modal.order)} onSampai={() => setModal({ kind: "sampai", order: modal.order })} />}

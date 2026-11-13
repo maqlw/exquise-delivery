@@ -35,7 +35,7 @@ export const saveSetting = async (key, value) => must(await sb.from("settings").
 export const reportOrders = async (from, to) => must(await sb.from("orders").select("ship_date, status, via, origin_id, area, lat, lng, sent_at, delivered_at, llm_price, llm_status").gte("ship_date", from).lte("ship_date", to).limit(10000));
 export async function loadDay(ymd) {
   const orders = must(await sb.from("orders").select("*").eq("ship_date", ymd).order("created_at", { ascending: false })).map(fromDb);
-  const routes = must(await sb.from("routes").select("id, origin_id, batch, courier_id, started_at, finished_at, route_stops(order_id, seq, eta_min)").eq("ship_date", ymd));
+  const routes = must(await sb.from("routes").select("id, origin_id, batch, courier_id, started_at, finished_at, stops_done_at, return_status, return_requested_at, return_note, returned_at, route_stops(order_id, seq, eta_min)").eq("ship_date", ymd));
   const sent = {};
   for (const r of routes) ((sent[r.origin_id + "|" + r.batch] ||= {})[r.courier_id] = r.route_stops.sort((a, b) => a.seq - b.seq).map(s => s.order_id));
   const ids = [...new Set(routes.map(r => r.courier_id))];
@@ -71,11 +71,16 @@ export async function sendExtra(ymd, oid, batch, routes) {
     if (!r.seq.length) continue;
     let route = must(await sb.from("routes").select("id, route_stops(seq)").eq("ship_date", ymd).eq("batch", batch).eq("courier_id", courierId).maybeSingle());
     if (!route) route = { ...must(await sb.from("routes").insert({ ship_date: ymd, origin_id: oid, batch, courier_id: courierId, km: Math.round(r.km * 10) / 10 }).select("id").single()), route_stops: [] };
-    else must(await sb.from("routes").update({ finished_at: null }).eq("id", route.id));
+    else must(await sb.from("routes").update({ finished_at: null, stops_done_at: null, return_status: null, returned_at: null }).eq("id", route.id));
     const last = Math.max(0, ...route.route_stops.map(s => s.seq));
     must(await sb.from("route_stops").insert(r.seq.map((o, i) => ({ route_id: route.id, order_id: o.id, seq: last + i + 1, eta_min: Math.round(r.eta[o.code]) }))));
     must(await sb.from("orders").update({ status: "siap" }).in("id", r.seq.map(o => o.id)).eq("status", "draft"));
   }
+}
+// Izin kurir langsung pulang (tidak kembali ke outlet): admin setujui -> rute selesai, tolak -> kurir harus kembali.
+export async function decideHome(routeId, ok) {
+  const { data: { user } } = await sb.auth.getUser();
+  must(await sb.from("routes").update(ok ? { return_status: "disetujui", finished_at: new Date().toISOString(), return_by: user?.id } : { return_status: "ditolak", return_by: user?.id }).eq("id", routeId).eq("return_status", "menunggu"));
 }
 export async function uploadProof(token, original) {
   const file = await compressImage(original), ext = (file.type.split("/")[1] || "jpg").replace("jpeg", "jpg");

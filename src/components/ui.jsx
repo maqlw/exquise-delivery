@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { LABEL, status } from "../lib/logic.js";
 
 export const Pill = ({ s, children, className = "" }) => <span className={`pill ${s || ""} ${className}`}>{children ?? LABEL[s]}</span>;
@@ -43,4 +43,17 @@ export function useToast() {
   const [msg, setMsg] = useState("");
   const show = useCallback(m => { setMsg(m); clearTimeout(show.t); show.t = setTimeout(() => setMsg(""), 3200); }, []);
   return [msg ? <div className="toast" role="status">{msg}</div> : null, show];
+}
+
+// Pilihan bergaya "liquid glass": pil kaca meluncur ke tombol aktif dengan efek memantul.
+export function GlassSeg({ items, value, onChange, label }) {
+  const ref = useRef(null), pillRef = useRef(null), [pill, setPill] = useState(null);
+  useLayoutEffect(() => {
+    const place = () => { const el = ref.current?.querySelector('[aria-pressed="true"]'); if (el) setPill({ x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight }); };
+    place(); addEventListener("resize", place); return () => removeEventListener("resize", place);
+  }, [value, items.length]);
+  useEffect(() => { const el = pillRef.current; if (!el) return; el.classList.remove("wob"); void el.offsetWidth; el.classList.add("wob"); }, [value]);
+  return (<div className="glass-seg" role="group" aria-label={label} ref={ref}>
+    {pill && <span ref={pillRef} className="glass-pill" aria-hidden="true" style={{ transform: `translate(${pill.x}px, ${pill.y}px)`, width: pill.w, height: pill.h }} />}
+    {items.map(([k, t]) => <button key={k} aria-pressed={k === value} onClick={() => onChange(k)}>{t}</button>)}</div>);
 }

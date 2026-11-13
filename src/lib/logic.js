@@ -183,6 +183,10 @@ export function status(o) {
   if (o.via === "pickup") return "pickup"; if (o.via !== "internal") return "pihak3";
   if (o.lat == null) return "cek"; return o.ship || "draft";
 }
+// Status kurir setelah semua alamat selesai: menuju outlet / minta izin pulang / sudah kembali.
+export const returnLabel = r => !r || !r.stops_done_at && !r.finished_at ? null
+  : r.return_status === "kembali" ? ["sampai", "Sudah kembali"] : r.return_status === "disetujui" ? ["sampai", "Pulang (disetujui)"]
+  : r.return_status === "menunggu" ? ["warn", "Minta izin pulang"] : r.finished_at ? ["sampai", "Selesai"] : ["jalan", "Menuju outlet"];
 export const routable = o => o.via === "internal" && o.lat != null;
 export function batchOf(o) { return o.batchForced || o.batchReq || (o.deadline != null ? (o.deadline <= 660 ? 1 : o.deadline <= 840 ? 2 : 3) : null); }
 export function timeline(org, seq, b) {
