@@ -1,0 +1,122 @@
+import { useState } from "react";
+import { Field } from "../components/ui.jsx";
+import { AreaPicker } from "../components/AreaPicker.jsx";
+import { sb, saveSetting, updateOrder, toDb } from "../lib/api.js";
+import { TUNE, BATCH, recompute, normPhone } from "../lib/logic.js";
+
+const parseLL = v => { const m = String(v).match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/); return m && Math.abs(+m[1]) <= 90 && Math.abs(+m[2]) <= 180 ? [+m[1], +m[2]] : null; };
+const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 24);
+const TPL = [
+  ["kirim_pemesan", "Kirim → pemesan", "Terkirim saat status jadi Dalam perjalanan."],
+  ["kirim_penerima", "Kirim → penerima", "Terkirim bersamaan ke No HP penerima."],
+  ["sampai_pemesan", "Sampai → pemesan", "Terkirim saat kurir menandai sampai."],
+  ["gagal_pemesan", "Gagal kirim → pemesan", "Terkirim saat kurir menandai gagal kirim."],
+];
+const VARS = { pemesan: "Ibu Sari", penerima: "Pak Budi", diterima_oleh: "Satpam Andi", alasan: "Penerima tidak ada", item: "Fraisier D18", kode: "GD2026110001", alamat: "Jl. Kemang Raya No. 8, Bangka, Jakarta Selatan 12730", link: "https://delivery.exquisepatisserie.space/lacak/contoh" };
+const fill = t => t.replace(/\{(\w+)\}/g, (m, v) => VARS[v] ?? m);
+
+export default function Settings({ origins, settings, orders, reload, toast }) {
+  return (<>
+    <h1>Pengaturan</h1><p className="sub">Lokasi asal, kata-kata WhatsApp, perkiraan waktu tempuh, dan alamat langganan.</p>
+    <div className="stack" style={{ marginTop: 16 }}>
+      <Origins key={Object.keys(origins).join()} origins={origins} reload={reload} toast={toast} />
+      <Templates value={settings.wa_templates || {}} reload={reload} toast={toast} />
+      <Tuning value={settings.tuning || TUNE} reload={reload} toast={toast} />
+      <Aliases value={settings.aliases || []} orders={orders} reload={reload} toast={toast} />
+    </div>
+  </>);
+}
+
+function Origins({ origins, reload, toast }) {
+  const [rows, setRows] = useState(() => Object.values(origins).map(o => ({ ...o, phone: o.phone || "", ll: `${o.lat}, ${o.lng}` })));
+  const [add, setAdd] = useState({ name: "", short: "", ll: "" }), [del, setDel] = useState(null);
+  const set = (i, k) => e => setRows(rows.map((r, j) => j === i ? { ...r, [k]: e.target.value } : r));
+  async function save(r) {
+    const ll = parseLL(r.ll); if (!r.name.trim() || !r.short.trim() || !ll) return toast("Isi nama, nama singkat, dan koordinat (contoh: -6.1525, 106.8345)");
+    const { error } = await sb.from("origins").update({ name: r.name.trim(), short: r.short.trim(), lat: ll[0], lng: ll[1], phone: normPhone(r.phone).p }).eq("id", r.id);
+    if (error) return toast("Gagal: " + error.message);
+    toast(`${r.short} disimpan`); reload();
+  }
+  async function create() {
+    const ll = parseLL(add.ll), id = slug(add.short || add.name);
+    if (!add.name.trim() || !add.short.trim() || !ll || !id) return toast("Isi nama, nama singkat, dan koordinat (contoh: -6.1525, 106.8345)");
+    if (origins[id]) return toast(`Kode ${id} sudah dipakai, ganti nama singkatnya`);
+    const { error } = await sb.from("origins").insert({ id, name: add.name.trim(), short: add.short.trim(), lat: ll[0], lng: ll[1] });
+    if (error) return toast("Gagal: " + error.message);
+    toast(`${add.short} ditambahkan`); setAdd({ name: "", short: "", ll: "" }); reload();
+  }
+  async function remove(r) {
+    const { error } = await sb.from("origins").delete().eq("id", r.id); setDel(null);
+    if (error) return toast(/foreign key/i.test(error.message) ? `${r.short} masih dipakai kurir, pesanan, atau rute. Pindahkan dulu kurirnya, atau biarkan saja.` : "Gagal: " + error.message);
+    toast(`${r.short} dihapus`); reload();
+  }
+  return (<section className="panel"><h2>Lokasi asal</h2>
+    <p className="note">Koordinat: di Google Maps, klik kanan titik lokasi lalu klik angka koordinat paling atas untuk menyalin, kemudian tempel di sini.</p>
+    {rows.map((r, i) => <div className="form" key={r.id} style={{ borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+      <Field id={`o-name-${i}`} label={`Nama lengkap · kode ${r.id}`}><input id={`o-name-${i}`} value={r.name} onChange={set(i, "name")} /></Field>
+      <Field id={`o-short-${i}`} label="Nama singkat"><input id={`o-short-${i}`} value={r.short} onChange={set(i, "short")} /></Field>
+      <Field id={`o-ll-${i}`} label="Koordinat (lat, lng)"><input id={`o-ll-${i}`} value={r.ll} onChange={set(i, "ll")} inputMode="decimal" /></Field>
+      <Field id={`o-ph-${i}`} label="No HP outlet (untuk driver Lalamove)"><input id={`o-ph-${i}`} value={r.phone} onChange={set(i, "phone")} inputMode="tel" placeholder="08…" /></Field>
+      <div className="row full"><button className="btn primary sm" onClick={() => save(r)}>Simpan</button>
+        {del === r.id ? <><button className="btn bad sm" onClick={() => remove(r)}>Ya, hapus {r.short}</button><button className="btn ghost sm" onClick={() => setDel(null)}>Batal</button></>
+          : <button className="btn ghost sm danger" onClick={() => setDel(r.id)}>Hapus</button>}</div></div>)}
+    <h3 style={{ marginTop: 16 }}>Tambah lokasi asal</h3>
+    <div className="form">
+      <Field id="o-add-name" label="Nama lengkap"><input id="o-add-name" value={add.name} onChange={e => setAdd({ ...add, name: e.target.value })} placeholder="Outlet Kelapa Gading" /></Field>
+      <Field id="o-add-short" label="Nama singkat"><input id="o-add-short" value={add.short} onChange={e => setAdd({ ...add, short: e.target.value })} placeholder="Kelapa Gading" /></Field>
+      <Field id="o-add-ll" full label="Koordinat (lat, lng)"><input id="o-add-ll" value={add.ll} onChange={e => setAdd({ ...add, ll: e.target.value })} placeholder="-6.1580, 106.9050" inputMode="decimal" /></Field></div>
+    <button className="btn ok" onClick={create}>+ Tambah lokasi</button></section>);
+}
+
+function Templates({ value, reload, toast }) {
+  const [t, setT] = useState(value);
+  async function save() {
+    if (TPL.some(([k]) => !String(t[k] || "").trim())) return toast("Semua template wajib diisi");
+    try { await saveSetting("wa_templates", t); toast("Template WhatsApp disimpan"); reload(); } catch (e) { toast("Gagal: " + e.message); }
+  }
+  return (<section className="panel"><h2>Kata-kata WhatsApp</h2>
+    <p className="note">Kata dalam kurung kurawal diganti otomatis: {Object.keys(VARS).map(k => <code key={k} style={{ marginRight: 6 }}>{`{${k}}`}</code>)}</p>
+    {TPL.map(([k, title, hint]) => <div key={k} className="tplrow">
+      <div><label className="lbl" htmlFor={`t-${k}`}>{title}</label><p className="note">{hint}</p>
+        <textarea id={`t-${k}`} rows="5" value={t[k] || ""} onChange={e => setT({ ...t, [k]: e.target.value })} style={{ width: "100%" }} /></div>
+      <div className="wa"><div className="bubble"><div className="to">Contoh</div>{fill(t[k] || "")}</div></div></div>)}
+    <button className="btn primary" onClick={save}>Simpan template</button></section>);
+}
+
+function Tuning({ value, reload, toast }) {
+  const [v, setV] = useState({ speed: { ...value.speed }, stop: value.stop });
+  async function save() {
+    const sp = [1, 2, 3].map(b => +v.speed[b]);
+    if (sp.some(x => !(x >= 5 && x <= 60)) || !(+v.stop >= 1 && +v.stop <= 60)) return toast("Kecepatan 5–60 km/jam, waktu berhenti 1–60 menit");
+    try { await saveSetting("tuning", { speed: { 1: sp[0], 2: sp[1], 3: sp[2] }, stop: +v.stop }); toast("Perkiraan waktu tempuh disimpan"); reload(); } catch (e) { toast("Gagal: " + e.message); }
+  }
+  return (<section className="panel"><h2>Perkiraan waktu tempuh</h2>
+    <p className="note">Jarak dihitung dari garis lurus × 1,35 (perkiraan jalan berbelok), dibagi kecepatan rata-rata, ditambah waktu berhenti di tiap alamat. Kalau di lapangan sering telat, turunkan kecepatan atau naikkan waktu berhenti.</p>
+    <div className="form">
+      {[1, 2, 3].map(b => <Field key={b} id={`sp-${b}`} label={`Kecepatan Batch ${b} (${BATCH[b].label}), km/jam`}><input id={`sp-${b}`} type="number" min="5" max="60" value={v.speed[b]} onChange={e => setV({ ...v, speed: { ...v.speed, [b]: e.target.value } })} /></Field>)}
+      <Field id="stop" label="Waktu berhenti per alamat (menit)"><input id="stop" type="number" min="1" max="60" value={v.stop} onChange={e => setV({ ...v, stop: e.target.value })} /></Field></div>
+    <button className="btn primary" onClick={save}>Simpan</button></section>);
+}
+
+function Aliases({ value, orders, reload, toast }) {
+  const [list, setList] = useState(value), [k, setK] = useState(""), [area, setArea] = useState(""), [key, setKey] = useState(0);
+  async function persist(next, msg) {
+    try {
+      await saveSetting("aliases", next); setList(next); await reload();
+      // Pesanan tanggal ini yang belum punya titik peta dicek ulang dengan daftar baru.
+      let n = 0; for (const o of orders.filter(o => o.lat == null && o.via !== "pickup")) { const x = recompute({ ...o }); if (x.lat != null) { await updateOrder(o.id, toDb(x)); n++; } }
+      toast(msg + (n ? ` · ${n} alamat sekarang ketemu di peta` : "")); if (n) reload();
+    } catch (e) { toast("Gagal: " + e.message); }
+  }
+  return (<section className="panel"><h2>Alamat dikenal</h2>
+    <p className="note">Untuk tempat langganan yang alamatnya tidak menyebut kelurahan atau kode pos, mis. "BRI KCK" atau "Menara Brilian". Kalau kata kunci ada di alamat, titik peta memakai kelurahan yang dipilih.</p>
+    {list.length > 0 && <ul className="hist">{list.map((x, i) => <li key={i} className="row between"><div><b>{x.k}</b><div className="meta">→ {x.area}</div></div>
+      <button className="btn ghost sm danger" onClick={() => persist(list.filter((_, j) => j !== i), `"${x.k}" dihapus`)}>Hapus</button></li>)}</ul>}
+    <div className="form" key={key}>
+      <Field id="al-k" label="Kata kunci di alamat"><input id="al-k" value={k} onChange={e => setK(e.target.value)} placeholder="BRI KCK" /></Field>
+      <Field id="al-a" label="Kelurahan / kode pos"><AreaPicker id="al-a" onPick={setArea} /></Field></div>
+    <button className="btn ok" onClick={() => {
+      if (k.trim().length < 3 || !area) return toast("Isi kata kunci (min. 3 huruf) dan pilih kelurahan dari daftar");
+      persist([...list, { k: k.trim(), area }], `"${k.trim()}" disimpan`); setK(""); setArea(""); setKey(key + 1);
+    }}>+ Simpan alamat dikenal</button></section>);
+}
