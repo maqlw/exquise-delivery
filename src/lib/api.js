@@ -100,10 +100,25 @@ export async function lalamove(action, params = {}) {
   return data;
 }
 export async function fonnteApi(action, params = {}) {
-  const { data, error } = await sb.functions.invoke("fonnte", { body: { action, ...params } });
+  const { data, error } = await sb.functions.invoke("wa-gateway", { body: { action, ...params } });
   if (error) { let msg = error.message; try { msg = (await error.context.json()).error || msg; } catch { /* pakai pesan bawaan */ } throw new Error(msg); }
   return data;
 }
+// Top up kuota WhatsApp: pengajuan -> bukti transfer -> diproses penyedia jasa (manual).
+export async function createTopup(pkg, note) {
+  const t = must(await sb.from("topup_requests").insert({ package_name: pkg.name, package_desc: pkg.desc || null, amount: pkg.price, note: note || null }).select("*").single());
+  await fonnteApi("topup_notify", { id: t.id, event: "baru" }).catch(() => {}); // notifikasi gagal tidak membatalkan pengajuan
+  return t;
+}
+export async function payTopup(id, original) {
+  const file = await compressImage(original), path = `topup/${id}-${Date.now()}.jpg`;
+  must(await sb.storage.from("proofs").upload(path, file, { contentType: file.type }));
+  const t = must(await sb.from("topup_requests").update({ status: "dibayar", proof_path: path, paid_at: new Date().toISOString() }).eq("id", id).select("*").single());
+  await fonnteApi("topup_notify", { id, event: "dibayar" }).catch(() => {});
+  return t;
+}
+export const listTopups = async (limit = 30) => must(await sb.from("topup_requests").select("*").order("created_at", { ascending: false }).limit(limit));
+export const setTopupStatus = async (id, status) => must(await sb.from("topup_requests").update({ status, ...(status === "selesai" ? { done_at: new Date().toISOString() } : {}) }).eq("id", id));
 export async function courierAccount(courierId, phone, pin) {
   const { data, error } = await sb.functions.invoke("courier-account", { body: { courier_id: courierId, phone, pin } });
   if (error) { let msg = error.message; try { msg = (await error.context.json()).error || msg; } catch { /* pakai pesan bawaan */ } throw new Error(msg); }

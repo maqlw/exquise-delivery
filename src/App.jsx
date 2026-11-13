@@ -67,7 +67,7 @@ function Admin({ email }) {
   const [master, setMaster] = useState(null), [day, setDay] = useState(null), [date, setDate] = useState(null), [dates, setDates] = useState([]);
   const [ui, setUi] = useState({ origin: "ck", batch: 1, filter: "all", lacak: null, q: "" });
   const [modal, setModal] = useState(null), [wa, setWa] = useState(null);
-  // Status WhatsApp (Fonnte): kuota, kedaluwarsa, terhubung. Dimuat sekali, bisa dicek ulang dari Dashboard/Pengaturan.
+  // Status WhatsApp Gateway: kuota, kedaluwarsa, terhubung. Dimuat sekali, bisa dicek ulang dari Dashboard/Pengaturan.
   const reloadWa = useCallback(() => api.fonnteApi("status").then(setWa).catch(e => setWa({ ok: false, reason: e.message })), []);
   useEffect(() => { reloadWa(); }, [reloadWa]);
   const reload = useCallback(async (d = date) => {

@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Field } from "../components/ui.jsx";
 import { AreaPicker } from "../components/AreaPicker.jsx";
-import { sb, saveSetting, updateOrder, toDb, fonnteApi } from "../lib/api.js";
+import { sb, saveSetting, updateOrder, toDb, fonnteApi, listTopups, setTopupStatus, proofUrl } from "../lib/api.js";
+import { rp, TOPUP_LABEL, TOPUP_PILL } from "../components/WhatsApp.jsx";
+import { Pill } from "../components/ui.jsx";
 import { TUNE, BATCH, recompute, normPhone } from "../lib/logic.js";
 
 const parseLL = v => { const m = String(v).match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/); return m && Math.abs(+m[1]) <= 90 && Math.abs(+m[2]) <= 180 ? [+m[1], +m[2]] : null; };
@@ -21,7 +23,8 @@ export default function Settings({ origins, settings, orders, reload, toast, wa,
   return (<>
     <h1>Pengaturan</h1><p className="sub">Lokasi asal, kata-kata WhatsApp, perkiraan waktu tempuh, dan alamat langganan.</p>
     <div className="stack" style={{ marginTop: 16 }}>
-      <Fonnte wa={wa} setWa={setWa} reloadWa={reloadWa} min={settings.wa_alert?.min_quota ?? 100} reload={reload} toast={toast} />
+      <Gateway wa={wa} setWa={setWa} reloadWa={reloadWa} min={settings.wa_alert?.min_quota ?? 100} reload={reload} toast={toast} />
+      <Topup value={settings.topup || {}} reload={reload} toast={toast} />
       <Origins key={Object.keys(origins).join()} origins={origins} reload={reload} toast={toast} />
       <Templates value={settings.wa_templates || {}} reload={reload} toast={toast} />
       <Tuning value={settings.tuning || TUNE} reload={reload} toast={toast} />
@@ -103,13 +106,13 @@ function Tuning({ value, reload, toast }) {
     <button className="btn primary" onClick={save}>Simpan</button></section>);
 }
 
-function Fonnte({ wa, setWa, reloadWa, min, reload, toast }) {
+function Gateway({ wa, setWa, reloadWa, min, reload, toast }) {
   const [tok, setTok] = useState(""), [busy, setBusy] = useState(""), [mode, setMode] = useState("qr"), [num, setNum] = useState(""), [res, setRes] = useState(null), [lim, setLim] = useState(min);
   const run = async (k, fn) => { setBusy(k); try { await fn(); } catch (e) { toast(e.message); } setBusy(""); };
-  const save = () => run("save", async () => { const r = await fonnteApi("save", { token: tok }); setWa(r); setTok(""); toast(`Token baru tersimpan. Terhubung ke ${r.device || "perangkat Fonnte"}.`); });
-  const connect = () => run("qr", async () => { setRes(null); const r = await fonnteApi("qr", { type: mode, whatsapp: num }); setRes(r); if (!r.ok && !r.image && !r.code) toast(r.reason || "Fonnte tidak memberi QR/kode. Mungkin perangkat sudah terhubung."); });
+  const save = () => run("save", async () => { const r = await fonnteApi("save", { token: tok }); setWa(r); setTok(""); toast(`Token baru tersimpan. Terhubung ke ${r.device || "perangkat WhatsApp"}.`); });
+  const connect = () => run("qr", async () => { setRes(null); const r = await fonnteApi("qr", { type: mode, whatsapp: num }); setRes(r); if (!r.ok && !r.image && !r.code) toast(r.reason || "Tidak ada QR/kode. Mungkin perangkat sudah terhubung."); });
   const saveLim = () => run("lim", async () => { if (!(+lim >= 0)) throw new Error("Isi angka"); await saveSetting("wa_alert", { min_quota: +lim }); toast("Batas peringatan kuota disimpan"); reload(); });
-  return (<section className="panel"><h2>WhatsApp (Fonnte)</h2>
+  return (<section className="panel"><h2>WhatsApp Gateway</h2>
     <div className="wa-set">
       <div><span className="lbl">Status</span><div className="addr"><span className={`wa-dot ${wa?.ok && wa.connected ? "on" : "off"}`} aria-hidden="true" /> {!wa ? "Memuat…" : !wa.ok ? (wa.reason || "Bermasalah") : wa.connected ? "Terhubung" : "Terputus"}</div></div>
       <div><span className="lbl">Nomor WhatsApp</span><div className="addr">{wa?.device || "–"}{wa?.name ? <span className="meta"> · {wa.name}</span> : ""}</div></div>
@@ -117,8 +120,8 @@ function Fonnte({ wa, setWa, reloadWa, min, reload, toast }) {
       <button className="btn ghost sm" disabled={busy === "cek"} onClick={() => run("cek", reloadWa)}>{busy === "cek" ? "Mengecek…" : "Cek ulang"}</button></div>
 
     <h3 style={{ marginTop: 16 }}>Ganti token / nomor WhatsApp</h3>
-    <p className="note">Ambil token di dashboard Fonnte (menu Device → token perangkat). Token dites dulu ke Fonnte; kalau ditolak, token lama tetap dipakai. Setelah disimpan, token tidak bisa dilihat lagi.</p>
-    <div className="row"><input type="password" autoComplete="off" value={tok} onChange={e => setTok(e.target.value)} placeholder="Tempel token Fonnte baru" aria-label="Token Fonnte baru" style={{ flex: 1, minWidth: 200 }} />
+    <p className="note">Tempel token perangkat dari penyedia WhatsApp Gateway. Token dites dulu; kalau ditolak, token lama tetap dipakai. Setelah disimpan, token tidak bisa dilihat lagi.</p>
+    <div className="row"><input type="password" autoComplete="off" value={tok} onChange={e => setTok(e.target.value)} placeholder="Tempel token baru" aria-label="Token WhatsApp Gateway baru" style={{ flex: 1, minWidth: 200 }} />
       <button className="btn primary" disabled={!tok.trim() || busy === "save"} onClick={save}>{busy === "save" ? "Mengetes…" : "Tes & simpan"}</button></div>
 
     <h3 style={{ marginTop: 16 }}>Sambungkan ulang WhatsApp</h3>
@@ -127,14 +130,51 @@ function Fonnte({ wa, setWa, reloadWa, min, reload, toast }) {
     <div className="row" style={{ marginTop: 8 }}>
       {mode === "code" && <input inputMode="tel" value={num} onChange={e => setNum(e.target.value)} placeholder="No WhatsApp outlet, mis. 0812…" aria-label="Nomor WhatsApp untuk kode" style={{ flex: 1, minWidth: 180 }} />}
       <button className="btn ok" disabled={busy === "qr"} onClick={connect}>{busy === "qr" ? "Meminta…" : mode === "qr" ? "Tampilkan QR" : "Minta kode"}</button></div>
-    {res?.image && <div className="wa-qr"><img src={res.image.startsWith("data:") ? res.image : `data:image/png;base64,${res.image}`} alt="QR untuk menyambungkan WhatsApp ke Fonnte" /><p className="note">Scan dari WhatsApp → Perangkat tertaut → Tautkan perangkat. QR berlaku sebentar; kalau kedaluwarsa, tekan Tampilkan QR lagi.</p></div>}
+    {res?.image && <div className="wa-qr"><img src={res.image.startsWith("data:") ? res.image : `data:image/png;base64,${res.image}`} alt="QR untuk menyambungkan WhatsApp" /><p className="note">Scan dari WhatsApp → Perangkat tertaut → Tautkan perangkat. QR berlaku sebentar; kalau kedaluwarsa, tekan Tampilkan QR lagi.</p></div>}
     {res?.code && <div className="wa-code"><span className="lbl">Kode sambung</span><b className="mono">{res.code}</b><p className="note">Di WhatsApp: Perangkat tertaut → Tautkan perangkat → <b>Tautkan dengan nomor telepon</b>, lalu masukkan kode ini.</p></div>}
-    {res && !res.image && !res.code && <p className="note">{res.reason || "Tidak ada QR/kode dari Fonnte. Kalau status sudah Terhubung, tidak perlu disambungkan."}</p>}
+    {res && !res.image && !res.code && <p className="note">{res.reason || "Tidak ada QR/kode. Kalau status sudah Terhubung, tidak perlu disambungkan."}</p>}
 
     <h3 style={{ marginTop: 16 }}>Peringatan kuota</h3>
     <div className="row"><Field id="wa-min" label="Peringatkan kalau kuota di bawah (pesan)"><input id="wa-min" type="number" min="0" value={lim} onChange={e => setLim(e.target.value)} /></Field>
       <button className="btn primary" style={{ alignSelf: "flex-end" }} disabled={busy === "lim"} onClick={saveLim}>Simpan</button></div>
     <p className="note">Peringatan juga muncul kalau WhatsApp terputus atau paket kedaluwarsa dalam 3 hari.</p></section>);
+}
+
+function Topup({ value, reload, toast }) {
+  const [pk, setPk] = useState(value.packages?.length ? value.packages : [{ name: "", desc: "", price: "" }]), [pay, setPay] = useState(value.payment || ""), [ph, setPh] = useState(value.notify_phone || "");
+  const [hist, setHist] = useState(null), [busy, setBusy] = useState(false);
+  const loadHist = () => listTopups(30).then(setHist).catch(e => toast(e.message));
+  useEffect(() => { loadHist(); }, []);
+  const set = (i, k) => e => setPk(pk.map((p, j) => j === i ? { ...p, [k]: e.target.value } : p));
+  async function save() {
+    const packages = pk.filter(p => p.name.trim()).map(p => ({ name: p.name.trim(), desc: p.desc.trim(), price: Math.round(+String(p.price).replace(/\D/g, "")) }));
+    if (packages.some(p => !(p.price > 0))) return toast("Setiap paket wajib punya harga");
+    const notify_phone = normPhone(ph).p || null;
+    if (ph.trim() && !notify_phone) return toast("No HP notifikasi tidak valid");
+    setBusy(true);
+    try { await saveSetting("topup", { packages, payment: pay.trim(), notify_phone }); toast("Pengaturan top up disimpan"); reload(); } catch (e) { toast("Gagal: " + e.message); }
+    setBusy(false);
+  }
+  const mark = async (t, status) => { try { await setTopupStatus(t.id, status); toast(status === "selesai" ? "Ditandai selesai" : "Dibatalkan"); loadHist(); } catch (e) { toast(e.message); } };
+  return (<section className="panel"><h2>Top up WhatsApp</h2>
+    <p className="note">Paket & harga yang muncul di tombol <b>Top up</b> Dashboard. Setiap pengajuan dan bukti transfer dikabarkan lewat WhatsApp ke No HP di bawah.</p>
+    {pk.map((p, i) => <div className="form" key={i} style={{ borderTop: "1px solid var(--line)", paddingTop: 10 }}>
+      <Field id={`tp-n-${i}`} label="Nama paket"><input id={`tp-n-${i}`} value={p.name} onChange={set(i, "name")} placeholder="Paket 1 bulan" /></Field>
+      <Field id={`tp-p-${i}`} label="Harga (Rp)"><input id={`tp-p-${i}`} inputMode="numeric" value={p.price} onChange={set(i, "price")} placeholder="150000" /></Field>
+      <Field id={`tp-d-${i}`} full label="Keterangan"><input id={`tp-d-${i}`} value={p.desc} onChange={set(i, "desc")} placeholder="Masa aktif 30 hari + kuota 1.000 pesan" /></Field>
+      <div className="row full"><button className="btn ghost sm danger" onClick={() => setPk(pk.filter((_, j) => j !== i))}>Hapus paket</button></div></div>)}
+    <button className="btn ghost" onClick={() => setPk([...pk, { name: "", desc: "", price: "" }])}>+ Tambah paket</button>
+    <div className="form" style={{ marginTop: 12 }}>
+      <Field id="tp-pay" full label="Instruksi pembayaran"><textarea id="tp-pay" rows="3" value={pay} onChange={e => setPay(e.target.value)} placeholder={"Transfer ke BCA 1234567890 a.n. …\natau scan QRIS"} /></Field>
+      <Field id="tp-ph" full label="No HP yang dikabari setiap ada pengajuan"><input id="tp-ph" inputMode="tel" value={ph} onChange={e => setPh(e.target.value)} placeholder="08…" /></Field></div>
+    <button className="btn primary" disabled={busy} onClick={save}>{busy ? "Menyimpan…" : "Simpan pengaturan top up"}</button>
+    <h3 style={{ marginTop: 18 }}>Riwayat top up</h3>
+    {!hist ? <p className="note">Memuat…</p> : !hist.length ? <p className="note">Belum ada pengajuan.</p>
+      : <ul className="hist">{hist.map(t => <li key={t.id} className="row between" style={{ flexWrap: "wrap", gap: 8 }}>
+        <div><b>{t.package_name}</b> · {rp(t.amount)} <Pill s={TOPUP_PILL[t.status]}>{TOPUP_LABEL[t.status]}</Pill>
+          <div className="meta">{new Date(t.created_at).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}{t.note ? ` · ${t.note}` : ""}{t.proof_path && <> · <a href={proofUrl(t.proof_path)} target="_blank" rel="noopener">bukti transfer</a></>}</div></div>
+        {["menunggu", "dibayar"].includes(t.status) && <div className="row"><button className="btn ok sm" onClick={() => mark(t, "selesai")}>Tandai selesai</button><button className="btn ghost sm danger" onClick={() => mark(t, "batal")}>Batalkan</button></div>}</li>)}</ul>}
+  </section>);
 }
 
 function GroupMin({ value, reload, toast }) {

@@ -1,0 +1,4 @@
+-- Diterapkan ke Supabase (migrasi "topup_requests"):
+-- topup_requests (paket, harga, catatan, status menunggu/dibayar/selesai/batal, bukti transfer); RLS admin.
+-- settings 'topup' = {"packages": [{name, desc, price}], "payment": "<instruksi bayar>", "notify_phone": "62…"}.
+-- Fungsi server dipindah: fonnte -> wa-gateway (+ aksi topup_notify). Fungsi lama "fonnte" sudah tidak dipakai aplikasi.
