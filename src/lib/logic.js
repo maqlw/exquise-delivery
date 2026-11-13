@@ -210,22 +210,28 @@ export function plan(orders, origins, couriers, sent) {
     for (const [k, v] of Object.entries(sent)) if (k.startsWith(oid + "|")) Object.values(v).flat().forEach(id => byId[id] && byB[+k.split("|")[1]].push(byId[id]));
     const free = list.filter(o => !sentIds.has(o.id));
     free.forEach(o => { o._b = batchOf(o); if (o._b) byB[o._b].push(o); });
-    free.filter(o => !o._b).sort((x, y) => km(org, x) - km(org, y)).forEach(o => { o._b = [1, 2, 3].find(b => byB[b].length < cap) || 3; byB[o._b].push(o); });
+    const open = b => !sent[oid + "|" + b]; // batch yang belum dikirim ke kurir
+    free.filter(o => !o._b).sort((x, y) => km(org, x) - km(org, y)).forEach(o => { o._b = [1, 2, 3].find(b => open(b) && byB[b].length < cap) || [1, 2, 3].find(open) || 3; byB[o._b].push(o); });
+    // Bagi pesanan ke kurir: yang dipilih admin dulu, sisanya dibagi per arah dari outlet.
+    const assign = (L, b) => {
+      const res = Object.fromEntries(ids.map(n => [n, []])), routes = {};
+      const forced = L.filter(o => ids.includes(o.courierForced)); forced.forEach(o => res[o.courierForced].push(o));
+      const rest = L.filter(o => !forced.includes(o));
+      const ang = o => Math.atan2(o.lat - org.lat, (o.lng - org.lng) * Math.cos(org.lat * Math.PI / 180));
+      rest.sort((x, y) => ang(x) - ang(y));
+      const target = Math.ceil(L.length / Math.max(1, ids.length)); let i = 0;
+      for (const o of rest) { while (i < ids.length - 1 && res[ids[i]].length >= target) i++; if (ids.length) res[ids[i]].push(o); }
+      for (const n of ids) routes[n] = bestRoute(org, res[n], b);
+      return routes;
+    };
     out[oid] = {};
     for (const b of [1, 2, 3]) {
-      const key = oid + "|" + b, routes = {};
-      if (sent[key]) { for (const id of ids) routes[id] = timeline(org, (sent[key][id] || []).map(x => byId[x]).filter(Boolean), b); }
-      else {
-        const res = Object.fromEntries(ids.map(n => [n, []]));
-        const forced = byB[b].filter(o => ids.includes(o.courierForced)); forced.forEach(o => res[o.courierForced].push(o));
-        const rest = byB[b].filter(o => !forced.includes(o));
-        const ang = o => Math.atan2(o.lat - org.lat, (o.lng - org.lng) * Math.cos(org.lat * Math.PI / 180));
-        rest.sort((x, y) => ang(x) - ang(y));
-        const target = Math.ceil(byB[b].length / Math.max(1, ids.length)); let i = 0;
-        for (const o of rest) { while (i < ids.length - 1 && res[ids[i]].length >= target) i++; if (ids.length) res[ids[i]].push(o); }
-        for (const n of ids) routes[n] = bestRoute(org, res[n], b);
-      }
-      out[oid][b] = { routes, count: byB[b].length, sent: !!sent[key] };
+      const key = oid + "|" + b;
+      if (!sent[key]) { out[oid][b] = { routes: assign(byB[b], b), extra: null, count: byB[b].length, sent: false }; continue; }
+      const routes = {}, add = byB[b].filter(o => !sentIds.has(o.id));
+      for (const id of ids) routes[id] = timeline(org, (sent[key][id] || []).map(x => byId[x]).filter(Boolean), b);
+      // Pesanan yang masuk setelah batch dikirim: direncanakan terpisah sebagai "tambahan" (kurir ambil di outlet).
+      out[oid][b] = { routes, extra: add.length ? { routes: assign(add, b), count: add.length } : null, count: byB[b].length, sent: true };
     }
   }
   return out;

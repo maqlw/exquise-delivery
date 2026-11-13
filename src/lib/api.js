@@ -65,6 +65,18 @@ export async function sendRoutes(ymd, oid, batch, routes) {
     must(await sb.from("orders").update({ status: "siap" }).in("id", r.seq.map(o => o.id)).eq("status", "draft"));
   }
 }
+// Tambahan setelah batch dikirim: alamat disambung ke rute kurir yang sudah ada (1 rute per kurir per batch), rute dibuka lagi kalau sudah selesai.
+export async function sendExtra(ymd, oid, batch, routes) {
+  for (const [courierId, r] of Object.entries(routes)) {
+    if (!r.seq.length) continue;
+    let route = must(await sb.from("routes").select("id, route_stops(seq)").eq("ship_date", ymd).eq("batch", batch).eq("courier_id", courierId).maybeSingle());
+    if (!route) route = { ...must(await sb.from("routes").insert({ ship_date: ymd, origin_id: oid, batch, courier_id: courierId, km: Math.round(r.km * 10) / 10 }).select("id").single()), route_stops: [] };
+    else must(await sb.from("routes").update({ finished_at: null }).eq("id", route.id));
+    const last = Math.max(0, ...route.route_stops.map(s => s.seq));
+    must(await sb.from("route_stops").insert(r.seq.map((o, i) => ({ route_id: route.id, order_id: o.id, seq: last + i + 1, eta_min: Math.round(r.eta[o.code]) }))));
+    must(await sb.from("orders").update({ status: "siap" }).in("id", r.seq.map(o => o.id)).eq("status", "draft"));
+  }
+}
 export async function uploadProof(token, original) {
   const file = await compressImage(original), ext = (file.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
   const path = `${token}/${crypto.randomUUID()}.${ext}`;

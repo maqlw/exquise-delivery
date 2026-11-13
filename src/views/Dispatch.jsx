@@ -2,7 +2,7 @@ import { useState } from "react";
 import MapSVG from "../components/MapSVG.jsx";
 import { Pill, Empty, StopInfo } from "../components/ui.jsx";
 import { BATCH, VIA, status, hhmm, fmtKm, dmy } from "../lib/logic.js";
-import { updateOrder, sendRoutes, lalamove } from "../lib/api.js";
+import { updateOrder, sendRoutes, sendExtra, lalamove } from "../lib/api.js";
 
 export default function Dispatch({ orders, origins, couriers, P, date, ui, setUi, reload, toast, routes, positions, act }) {
   const [busy, setBusy] = useState(false);
@@ -21,34 +21,46 @@ export default function Dispatch({ orders, origins, couriers, P, date, ui, setUi
   }
   async function send() {
     setBusy(true);
-    try { await sendRoutes(date, oid, b, B.routes); toast(`Rute Batch ${b} dikirim ke ${rs.filter(r => r.seq.length).length} kurir`); await reload(); }
+    try { await sendRoutes(date, oid, b, B.routes); await reload(); toast(`Rute Batch ${b} dikirim ke ${rs.filter(r => r.seq.length).length} kurir`); }
     catch (e) { toast("Gagal mengirim rute: " + e.message); }
     setBusy(false);
   }
+  async function sendAdd() {
+    setBusy(true);
+    try { const n = B.extra.count; await sendExtra(date, oid, b, B.extra.routes); await reload(); toast(`${n} alamat tambahan Batch ${b} dikirim ke HP kurir`); }
+    catch (e) { toast("Gagal mengirim tambahan: " + e.message); }
+    setBusy(false);
+  }
+  // Kartu per kurir; locked = rute sudah di HP kurir (tidak bisa dipindah/diedit).
+  const cards = (R, locked) => <div className="couriers">{list.map(c => { const r = R[c.id]; return (
+        <article className="cc" key={c.id}><div className="cc-h"><span className="dot" style={{ background: c.color }} /><b>{c.name}</b><span className="meta">{r.seq.length} alamat · {fmtKm(r.km)}{r.seq.length ? ` · selesai ${hhmm(r.end)}` : ""}</span>{r.late > 0 && <Pill s="late">{r.late} terlambat</Pill>}</div>
+          {r.seq.length ? <ol className="stops">{r.seq.map((o, i) => { const e = r.eta[o.code], isLate = o.deadline != null && e > o.deadline; return (
+            <li key={o.id}><span className="num" style={{ background: isLate ? "var(--bad)" : c.color }}>{i + 1}</span>
+              <div><StopInfo o={o} />
+                {locked ? <Pill s={status(o)} /> : <select aria-label={`Pindahkan ${o.code}`} style={{ marginTop: 4, fontSize: 13 }} value="" onChange={e => e.target.value && move(o, e.target.value)}>
+                  <option value="">Pindahkan…</option>{list.filter(x => x.id !== c.id).map(x => <option key={x.id} value={"c:" + x.id}>Ke {x.name}</option>)}
+                  {[1, 2, 3].filter(x => x !== b).map(x => <option key={x} value={"b:" + x}>Ke Batch {x}</option>)}<option value="v:lalamove">Ke Lalamove</option><option value="v:gosend">Ke GoSend</option><option value="v:grab">Ke GrabExpress</option></select>}
+                {!locked && <button className="btn ghost sm" style={{ marginLeft: 6 }} onClick={() => act.edit(o)}>Edit</button>}</div>
+              <div className="eta">{hhmm(e)}{o.deadline != null && <Pill s={isLate ? "late" : "ok"}>batas {hhmm(o.deadline)}</Pill>}</div></li>); })}</ol>
+            : <p className="note">Tidak ada alamat di batch ini.</p>}</article>); })}</div>;
   const started = id => routes.some(r => r.courier_id === id && r.batch === b && r.started_at && !r.finished_at);
   return (<>
     <h1>Susun pengiriman {dmy(date)}</h1><p className="sub">Sistem mengusulkan pembagian kurir dan urutan antar per lokasi asal dan batch. Pindahkan alamat kalau perlu, lalu kirim rute ke kurir.</p>
     <div className="seg" role="group" aria-label="Lokasi asal" style={{ marginTop: 16 }}>
       {Object.values(origins).map(x => <button key={x.id} aria-pressed={x.id === oid} onClick={() => setUi({ ...ui, origin: x.id })}>{x.short} <small>{[1, 2, 3].reduce((a, y) => a + P[x.id][y].count, 0)}</small></button>)}</div>
     <div className="tabs" role="group" aria-label="Batch" style={{ marginTop: 12 }}>
-      {[1, 2, 3].map(x => <button key={x} aria-pressed={x === b} onClick={() => setUi({ ...ui, batch: x })}>Batch {x}{P[oid][x].sent ? " ✓" : ""}<small>{BATCH[x].label} · {P[oid][x].count} alamat</small></button>)}</div>
+      {[1, 2, 3].map(x => <button key={x} aria-pressed={x === b} onClick={() => setUi({ ...ui, batch: x })}>Batch {x}{P[oid][x].sent ? " ✓" : ""}{P[oid][x].extra && <span className="badge-add">+{P[oid][x].extra.count} tambahan</span>}<small>{BATCH[x].label} · {P[oid][x].count} alamat</small></button>)}</div>
     <div className="grid"><div className="stack">
       <div className="kpis"><div className="kpi"><span>Alamat</span><b>{B.count}</b></div><div className="kpi"><span>Total jarak</span><b>{fmtKm(totalKm)}</b></div><div className="kpi"><span>Selesai paling akhir</span><b>{B.count ? hhmm(end) : "–"}</b></div><div className={`kpi ${late ? "bad" : "ok"}`}><span>Lewat request jam</span><b>{late}</b></div></div>
       {!list.length && <div className="banner warn">Belum ada kurir aktif di {org.short}. Tambahkan di menu Kurir.</div>}
       {cek > 0 && <div className="banner warn">{cek} alamat dari {org.short} belum punya titik peta dan belum masuk rute. <a href="#upload">Perbaiki di Data pengiriman</a>.</div>}
       {late > 0 && <div className="banner bad">{late} alamat diperkirakan lewat request jam. Pindahkan ke kurir lain atau kirim lewat pihak ketiga.</div>}
       {end > BATCH[b].end && <div className="banner warn">Rute selesai {hhmm(end)}, lewat jam akhir Batch {b} ({hhmm(BATCH[b].end)}).</div>}
-      <div className="couriers">{list.map(c => { const r = B.routes[c.id]; return (
-        <article className="cc" key={c.id}><div className="cc-h"><span className="dot" style={{ background: c.color }} /><b>{c.name}</b><span className="meta">{r.seq.length} alamat · {fmtKm(r.km)}{r.seq.length ? ` · selesai ${hhmm(r.end)}` : ""}</span>{r.late > 0 && <Pill s="late">{r.late} terlambat</Pill>}</div>
-          {r.seq.length ? <ol className="stops">{r.seq.map((o, i) => { const e = r.eta[o.code], isLate = o.deadline != null && e > o.deadline; return (
-            <li key={o.id}><span className="num" style={{ background: isLate ? "var(--bad)" : c.color }}>{i + 1}</span>
-              <div><StopInfo o={o} />
-                {B.sent ? <Pill s={status(o)} /> : <select aria-label={`Pindahkan ${o.code}`} style={{ marginTop: 4, fontSize: 13 }} value="" onChange={e => e.target.value && move(o, e.target.value)}>
-                  <option value="">Pindahkan…</option>{list.filter(x => x.id !== c.id).map(x => <option key={x.id} value={"c:" + x.id}>Ke {x.name}</option>)}
-                  {[1, 2, 3].filter(x => x !== b).map(x => <option key={x} value={"b:" + x}>Ke Batch {x}</option>)}<option value="v:lalamove">Ke Lalamove</option><option value="v:gosend">Ke GoSend</option><option value="v:grab">Ke GrabExpress</option></select>}
-                {!B.sent && <button className="btn ghost sm" style={{ marginLeft: 6 }} onClick={() => act.edit(o)}>Edit</button>}</div>
-              <div className="eta">{hhmm(e)}{o.deadline != null && <Pill s={isLate ? "late" : "ok"}>batas {hhmm(o.deadline)}</Pill>}</div></li>); })}</ol>
-            : <p className="note">Tidak ada alamat di batch ini.</p>}</article>); })}</div>
+      {cards(B.routes, B.sent)}
+      {B.extra && <section className="panel extra"><h2>Tambahan Batch {b} · {B.extra.count} alamat</h2>
+        <p className="note">Masuk setelah rute Batch {b} dikirim. Kurir mengambil kuenya di {org.short}, lalu alamat ini muncul di HP kurir setelah rutenya yang sekarang.</p>
+        {cards(B.extra.routes, false)}
+        <button className="btn primary big" disabled={busy || !list.length} onClick={sendAdd}>{busy ? "Mengirim…" : `Kirim ${B.extra.count} alamat tambahan ke kurir`}</button></section>}
       <div className="row">{B.sent ? <><div className="banner ok" style={{ flex: 1 }}>Rute Batch {b} sudah dikirim ke kurir. Status berubah dari aksi kurir.</div><a className="btn ghost" href="#lacak">Pantau di Lacak →</a></>
         : <button className="btn primary big" onClick={send} disabled={!B.count || busy || !list.length}>{busy ? "Mengirim…" : `Kirim rute Batch ${b} ke kurir ${org.short}`}</button>}</div>
       <section className="panel"><h2>Pihak ketiga · {ext.length}</h2><p className="note">Pesan lewat aplikasinya seperti biasa, lalu tempel link tracking supaya muncul di halaman lacak customer.</p>

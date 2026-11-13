@@ -299,3 +299,5 @@ ol.stops li:first-child{border-top:0}
 .bulkbar select{max-width:100%}
 .rtable tr.picked td{background:var(--accent-soft,#e6f6ec)}
 .pubhead{background:#fbf6ef;border-bottom:3px solid #bc5539;padding:12px 16px;display:flex;justify-content:center}
+.badge-add{margin-left:6px;font:700 11px var(--f-body);background:var(--warn,#c26a12);color:#fff;border-radius:999px;padding:1px 7px}
+.panel.extra{border:2px dashed var(--warn,#c26a12)}

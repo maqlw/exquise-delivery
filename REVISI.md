@@ -13,11 +13,17 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v006** | 13/11/2026 | Perbaikan bug: pesanan tambahan di batch yang sudah dikirim sekarang bisa di-dispatch. |
 | **v005** | 13/11/2026 | Audit keamanan: tidak ada rahasia di website; data lokasi outlet ditutup dari akun asing. |
 | **v004** | 13/11/2026 | Logo resmi Exquise (dengan croissant) di kartu preview & seluruh website, ikon tab croissant. |
 | **v003** | 13/11/2026 | Kartu preview pakai logo Exquise (navy) di background krem + aksen terakota. |
 | **v002** | 13/11/2026 | Kartu preview WhatsApp untuk link lacak (gambar Exquise + nama penerima & produk). |
 | **v001** | 13/11/2026 | Titik awal riwayat versi. Berisi semua fitur sampai hari ini (rincian di bawah). |
+
+## v006 · 13/11/2026 · bug tambahan batch
+- **Bug:** setelah rute satu batch dikirim ke kurir, pesanan baru yang masuk ke batch itu terhitung tapi tidak muncul di rute dan tidak ada tombol kirimnya. Pesanan tanpa jam request juga bisa otomatis masuk ke batch yang sudah dikirim.
+- **Perbaikan:** di Dispatch muncul bagian **"Tambahan Batch X"** (kotak garis putus oranye) + tanda **"+N tambahan"** di tab batch. Tombol **"Kirim N alamat tambahan ke kurir"** menyambung alamat ke rute kurir yang sudah ada (kalau rutenya sudah selesai, dibuka lagi). Pesanan tanpa jam request tidak lagi dimasukkan ke batch yang sudah dikirim.
+- **Supaya tidak terulang:** 2 tes otomatis baru (`src/lib/logic.test.js`) memastikan setiap pesanan selalu ada di rute terkirim, rencana, atau tambahan, tanpa hilang atau dobel. Tes dijalankan sebelum setiap rilis.
 
 ## v005 · 13/11/2026 · audit keamanan
 - Dicek: file website (JS, HTML, PHP) tidak memuat token Fonnte, key Lalamove, kunci admin Supabase, email, password, atau No HP. Yang ada hanya alamat Supabase + kunci publik (memang harus publik).

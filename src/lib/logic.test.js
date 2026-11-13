@@ -42,3 +42,22 @@ test("semua alamat terbagi ke kurir tanpa dobel", () => {
   assert.equal(ids.length, 7); assert.equal(new Set(ids).size, 7);
   assert.equal(status(r.orders[0]), "draft");
 });
+// Bug 13/11: pesanan tambahan di batch yang sudah dikirim tidak bisa di-dispatch.
+test("pesanan tambahan di batch yang sudah dikirim tetap bisa dikirim", () => {
+  const r = buildOrders(["Kemang", "Tebet", "Pluit", "Sunter"].map((a, i) => ({ gd: "G" + i, date: "09/11/2026", sender: "S", recipient: "R" + i, address: "Jl. X, " + a, item: "Kue", batch: "Batch 2" })));
+  r.orders.forEach((o, i) => { o.id = "o" + i; });
+  const org = { ck: { lat: -6.1525, lng: 106.8345 } }, kurir = [{ id: "k1", origin_id: "ck", active: true }, { id: "k2", origin_id: "ck", active: true }];
+  const sent = { "ck|2": { k1: ["o0", "o1"], k2: ["o2"] } }; // o3 masuk setelah rute Batch 2 dikirim
+  const B = plan(r.orders, org, kurir, sent).ck[2];
+  const extra = Object.values(B.extra?.routes || {}).flatMap(x => x.seq.map(o => o.id));
+  assert.deepEqual(extra, ["o3"]);
+  // tidak ada pesanan yang hilang atau dobel di semua batch (terkirim + rencana + tambahan)
+  const P = plan(r.orders, org, kurir, sent).ck, all = [1, 2, 3].flatMap(b => [P[b].routes, P[b].extra?.routes || {}].flatMap(rs => Object.values(rs).flatMap(x => x.seq.map(o => o.id))));
+  assert.deepEqual(all.sort(), ["o0", "o1", "o2", "o3"]);
+});
+test("pesanan tanpa batch tidak dilempar ke batch yang sudah dikirim", () => {
+  const r = buildOrders([{ gd: "G9", date: "09/11/2026", sender: "S", recipient: "R", address: "Jl. X, Tebet", item: "Kue" }]);
+  r.orders[0].id = "x";
+  const P = plan(r.orders, { ck: { lat: -6.1525, lng: 106.8345 } }, [{ id: "k1", origin_id: "ck", active: true }], { "ck|1": { k1: [] } }).ck;
+  assert.equal(Object.values(P[2].routes).flatMap(x => x.seq).length, 1);
+});
