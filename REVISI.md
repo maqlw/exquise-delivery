@@ -13,12 +13,17 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v007** | 13/11/2026 | Tampilan HP admin: tombol Keluar di header, menu ikon saja (nama muncul di menu yang dibuka). |
 | **v006** | 13/11/2026 | Perbaikan bug: pesanan tambahan di batch yang sudah dikirim sekarang bisa di-dispatch. |
 | **v005** | 13/11/2026 | Audit keamanan: tidak ada rahasia di website; data lokasi outlet ditutup dari akun asing. |
 | **v004** | 13/11/2026 | Logo resmi Exquise (dengan croissant) di kartu preview & seluruh website, ikon tab croissant. |
 | **v003** | 13/11/2026 | Kartu preview pakai logo Exquise (navy) di background krem + aksen terakota. |
 | **v002** | 13/11/2026 | Kartu preview WhatsApp untuk link lacak (gambar Exquise + nama penerima & produk). |
 | **v001** | 13/11/2026 | Titik awal riwayat versi. Berisi semua fitur sampai hari ini (rincian di bawah). |
+
+## v007 · 13/11/2026 · header HP admin
+- Tombol **Keluar** sekarang ada di kanan atas header saat dibuka di HP (sebelumnya tersembunyi).
+- Menu di HP tampil sebagai ikon saja; nama menu muncul hanya di menu yang sedang dibuka. Di laptop tetap ikon + nama seperti biasa.
 
 ## v006 · 13/11/2026 · bug tambahan batch
 - **Bug:** setelah rute satu batch dikirim ke kurir, pesanan baru yang masuk ke batch itu terhitung tapi tidak muncul di rute dan tidak ada tombol kirimnya. Pesanan tanpa jam request juga bisa otomatis masuk ke batch yang sudah dikirim.

@@ -39,6 +39,7 @@ body{margin:0;color:var(--ink);font:14px/1.5 var(--f-body);background:radial-gra
 .side nav a[aria-current="page"] .ic{background:#fff;color:#0f1b13}
 .side nav a .badge{margin-left:auto;font:700 11px var(--f-body);background:var(--accent-hi);color:#062c14;border-radius:999px;padding:1px 8px}
 .side .spacer{flex:1}
+.mobile-out{display:none!important;background:#1d2a22;color:#fff}
 .who{display:flex;gap:10px;align-items:center;border-top:1px solid var(--side-line);padding:12px 6px 4px}
 .avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font:700 13px var(--f-display);color:#fff;flex:none;background:linear-gradient(135deg,#37d670,#198c40)}
 .who b{display:block;font:700 13px var(--f-display);color:#fff}.who span{font-size:11px;color:var(--side-muted)}
@@ -53,7 +54,10 @@ main{padding:22px 24px 48px}
   .side .brand img{height:52px!important}
   .side .navlbl,.side .spacer,.who{display:none}
   .side nav{flex-direction:row;overflow-x:auto;gap:4px}
-  .side nav a{padding:6px 10px;white-space:nowrap;gap:8px}.side nav a .ic{width:24px;height:24px}
+  .side nav a{padding:6px 8px;white-space:nowrap;gap:8px;flex:none}.side nav a .ic{width:30px;height:30px}
+  .side nav a:not([aria-current="page"]) .t{display:none} /* HP: ikon saja, nama hanya untuk menu yang dibuka */
+  .side .brand{justify-content:space-between}
+  .mobile-out{display:inline-flex!important}
   .viewport{border-radius:0;overflow:visible}
   main{padding:18px 16px 48px}.demo{padding:6px 16px}
 }
