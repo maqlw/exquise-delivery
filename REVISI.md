@@ -13,10 +13,16 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v005** | 13/11/2026 | Audit keamanan: tidak ada rahasia di website; data lokasi outlet ditutup dari akun asing. |
 | **v004** | 13/11/2026 | Logo resmi Exquise (dengan croissant) di kartu preview & seluruh website, ikon tab croissant. |
 | **v003** | 13/11/2026 | Kartu preview pakai logo Exquise (navy) di background krem + aksen terakota. |
 | **v002** | 13/11/2026 | Kartu preview WhatsApp untuk link lacak (gambar Exquise + nama penerima & produk). |
 | **v001** | 13/11/2026 | Titik awal riwayat versi. Berisi semua fitur sampai hari ini (rincian di bawah). |
+
+## v005 · 13/11/2026 · audit keamanan
+- Dicek: file website (JS, HTML, PHP) tidak memuat token Fonnte, key Lalamove, kunci admin Supabase, email, password, atau No HP. Yang ada hanya alamat Supabase + kunci publik (memang harus publik).
+- Dicek: tanpa login, semua tabel kosong, foto bukti tidak bisa didaftar, fungsi internal ditolak. Customer tetap bisa buka link lacak tanpa login.
+- Diperbaiki: tabel lokasi outlet (nama, koordinat, No HP outlet) sebelumnya bisa dibaca akun login mana pun; sekarang hanya admin & kurir (`supabase/migrations/20261113_origins_admin_courier_only.sql`).
 
 ## v004 · 13/11/2026 · logo resmi di seluruh website
 - Logo dari file resmi (navy #0D3144 + croissant terakota #BC5539), dibuat 3 versi transparan: warna (`logo-exquise.png`), terang untuk background gelap (`logo-exquise-light.png`), ikon croissant (`icon-croissant.png`).
