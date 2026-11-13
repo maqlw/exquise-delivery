@@ -13,6 +13,7 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v011** | 13/11/2026 | Pesanan grup: 1 pemesan banyak penerima cukup 2 WhatsApp (awal & akhir) + 1 link pantau semua penerima. |
 | **v010** | 13/11/2026 | Saklar cek GPS kembali ke outlet; kotak cari & filter tanggal baru; menu HP melayang di bawah ala Dynamic Island. |
 | **v009** | 13/11/2026 | Radius kembali ke outlet 500 m; transisi liquid glass di semua menu, tab & filter admin; tombol mata di login. |
 | **v008** | 13/11/2026 | Kurir wajib kembali ke outlet (cek GPS) atau minta izin pulang ke admin; tombol Kirim lebih jelas; transisi liquid glass antar batch. |
@@ -23,6 +24,14 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 | **v003** | 13/11/2026 | Kartu preview pakai logo Exquise (navy) di background krem + aksen terakota. |
 | **v002** | 13/11/2026 | Kartu preview WhatsApp untuk link lacak (gambar Exquise + nama penerima & produk). |
 | **v001** | 13/11/2026 | Titik awal riwayat versi. Berisi semua fitur sampai hari ini (rincian di bawah). |
+
+## v011 · 13/11/2026 · pesanan grup
+- Pemesan (No HP sama) dengan **≥ 3 penerima** di tanggal kirim yang sama otomatis jadi **pesanan grup** (angka bisa diubah di Pengaturan → Pesanan grup).
+- WhatsApp ke pemesan grup cuma **2x**: "grup mulai" saat kiriman pertama berangkat & "grup selesai" saat semua sampai/gagal (berisi jumlah sampai & gagal). **Gagal kirim tetap langsung dikabarkan.** Penerima tetap dapat WhatsApp masing-masing. Berlaku juga untuk kiriman Lalamove.
+- Link grup **/g/…**: progres, jumlah per status, daftar semua penerima (cari nama/alamat), tiap baris bisa diklik ke halaman lacak penerima. Kartu preview WhatsApp: "N kiriman dari {pemesan}".
+- Template baru di Pengaturan: **Grup mulai** & **Grup selesai** dengan kata otomatis {jumlah}, {sampai}, {gagal}, {link}.
+- Admin: detail Lacak pesanan menampilkan **link grup** (bisa disalin) kalau pemesannya pesanan grup.
+- Kalau WhatsApp grup gagal terkirim (Fonnte gangguan), tandanya dibatalkan supaya dicoba lagi di kejadian berikutnya.
 
 ## v010 · 13/11/2026 · saklar GPS, kotak cari, filter tanggal, menu melayang
 - **Pengaturan → Cek GPS saat kurir kembali ke outlet** (saklar ON/OFF, default ON). OFF: tombol "Saya sudah kembali di outlet" langsung diterima tanpa cek jarak (untuk HP dengan GPS kurang akurat). Hanya berlaku untuk langkah kembali ke outlet.

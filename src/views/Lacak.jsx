@@ -3,7 +3,7 @@ import MapSVG from "../components/MapSVG.jsx";
 import { Pill, Phone, Empty, Timeline, StatusPill, Search } from "../components/ui.jsx";
 import { HistoryList, WaBubbles } from "../components/OrderModals.jsx";
 import { VIA, status, hhmm, dmy, fmtTime, km, minutes, TUNE } from "../lib/logic.js";
-import { trackUrl, addressHistory, waLogs } from "../lib/api.js";
+import { trackUrl, addressHistory, waLogs, sb, SITE } from "../lib/api.js";
 
 export const copy = (text, toast) => navigator.clipboard?.writeText(text).then(() => toast("Link disalin"), () => toast("Salin manual: " + text));
 
@@ -17,6 +17,8 @@ function Detail({ o, ctx }) {
   const { P, couriers, routes, positions, origins, toast, act, setUi, ui } = ctx;
   const [hist, setHist] = useState([]), [wa, setWa] = useState([]);
   useEffect(() => { addressHistory(o.id).then(setHist).catch(() => {}); waLogs(o.id).then(setWa).catch(() => {}); }, [o.id, o.ship]);
+  const [grp, setGrp] = useState(null); // link grup kalau pemesan ini sudah jadi pesanan grup
+  useEffect(() => { setGrp(null); if (o.phoneSender) sb.from("order_groups").select("token").eq("sender_phone", o.phoneSender).eq("ship_date", o.ymd).maybeSingle().then(({ data }) => data && setGrp(`${SITE}/g/${data.token}`)); }, [o.id]);
   const s = status(o), info = courierInfo(P, couriers, routes, o), started = info.route?.started_at && !info.route?.finished_at, pos = started ? positions[info.c.id] : null;
   let eta = info.r ? info.r.eta[o.code] : null, ahead = 0;
   if (s === "jalan" && pos) { let m = 0, p = pos;
@@ -46,6 +48,7 @@ function Detail({ o, ctx }) {
     <section className="panel"><h2>Informasi pesanan</h2><dl className="info">{info2.map(([k, v]) => [<dt key={k + "t"}>{k}</dt>, <dd key={k + "d"}>{v}</dd>])}</dl>
       {o.proof && <div><div className="lbl">Foto bukti terima</div><a href={o.proof} target="_blank" rel="noopener"><img className="proof" src={o.proof} alt="Foto bukti terima" /></a></div>}
       <div><div className="lbl">Link lacak</div><div className="linkbox"><code>{link}</code><button className="btn ghost sm" onClick={() => copy(link, toast)}>Salin link</button></div>
+      {grp && <div><div className="lbl">Link grup · semua kiriman dari {o.sender}</div><div className="linkbox"><code>{grp}</code><button className="btn ghost sm" onClick={() => copy(grp, toast)}>Salin link</button></div></div>}
         {!o.phone && <p className="note" style={{ marginTop: 6 }}>Penerima tidak punya No HP. Bagikan link ini manual ke nomor yang ada.</p>}</div>
       {o.via !== "internal" && o.via !== "pickup" && (o.link ? <a className="btn primary" href={o.link} target="_blank" rel="noopener">Lacak driver di {VIA[o.via]}</a> : <div className="banner warn">Link tracking {VIA[o.via]} belum ditempel di Dispatch.</div>)}</section>
     {o.lat != null && <section className="panel"><h2>Posisi kurir</h2>

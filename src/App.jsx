@@ -13,6 +13,7 @@ import CourierAdmin from "./views/CourierAdmin.jsx";
 import Lacak from "./views/Lacak.jsx";
 import CourierScreen from "./views/CourierScreen.jsx";
 import TrackPublic from "./views/TrackPublic.jsx";
+import TrackGroup from "./views/TrackGroup.jsx";
 import Report from "./views/Report.jsx";
 import Settings from "./views/Settings.jsx";
 
@@ -30,10 +31,10 @@ const useHash = () => { const [h, setH] = useState(location.hash.slice(1)); useE
 
 
 export default function App() {
-  const track = location.pathname.match(/^\/lacak\/([A-Za-z0-9]+)/);
+  const track = location.pathname.match(/^\/lacak\/([A-Za-z0-9]+)/), grp = location.pathname.match(/^\/g\/([A-Za-z0-9]+)/);
   const [session, setSession] = useState(undefined), [role, setRole] = useState(null);
   useEffect(() => {
-    if (track) return;
+    if (track || grp) return;
     api.sb.auth.getSession().then(({ data }) => setSession(data.session));
     const { data } = api.sb.auth.onAuthStateChange((_e, s) => setSession(s));
     return () => data.subscription.unsubscribe();
@@ -48,6 +49,7 @@ export default function App() {
     })();
   }, [session?.user?.id]);
   if (track) return <TrackPublic token={track[1]} />;
+  if (grp) return <TrackGroup token={grp[1]} />;
   if (session === undefined || (session && !role)) return <div className="login"><span className="spin" aria-label="Memuat" /></div>;
   if (!session) return <Login />;
   if (role === "kurir") return <CourierScreen />;

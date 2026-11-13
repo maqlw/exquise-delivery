@@ -10,9 +10,11 @@ const TPL = [
   ["kirim_pemesan", "Kirim → pemesan", "Terkirim saat status jadi Dalam perjalanan."],
   ["kirim_penerima", "Kirim → penerima", "Terkirim bersamaan ke No HP penerima."],
   ["sampai_pemesan", "Sampai → pemesan", "Terkirim saat kurir menandai sampai."],
-  ["gagal_pemesan", "Gagal kirim → pemesan", "Terkirim saat kurir menandai gagal kirim."],
+  ["gagal_pemesan", "Gagal kirim → pemesan", "Terkirim saat kurir menandai gagal kirim (juga untuk pesanan grup)."],
+  ["grup_mulai", "Grup mulai → pemesan", "Pesanan grup: 1x saat kiriman pertama berangkat. Pakai {jumlah} dan {link} (link grup)."],
+  ["grup_selesai", "Grup selesai → pemesan", "Pesanan grup: 1x saat semua kiriman sampai/gagal. Pakai {jumlah}, {sampai}, {gagal}, {link}."],
 ];
-const VARS = { pemesan: "Ibu Sari", penerima: "Pak Budi", diterima_oleh: "Satpam Andi", alasan: "Penerima tidak ada", item: "Fraisier D18", kode: "GD2026110001", alamat: "Jl. Kemang Raya No. 8, Bangka, Jakarta Selatan 12730", link: "https://delivery.exquisepatisserie.space/lacak/contoh" };
+const VARS = { pemesan: "Ibu Sari", penerima: "Pak Budi", diterima_oleh: "Satpam Andi", alasan: "Penerima tidak ada", item: "Fraisier D18", kode: "GD2026110001", jumlah: "30", sampai: "28", gagal: "2", alamat: "Jl. Kemang Raya No. 8, Bangka, Jakarta Selatan 12730", link: "https://delivery.exquisepatisserie.space/lacak/contoh" };
 const fill = t => t.replace(/\{(\w+)\}/g, (m, v) => VARS[v] ?? m);
 
 export default function Settings({ origins, settings, orders, reload, toast }) {
@@ -22,6 +24,7 @@ export default function Settings({ origins, settings, orders, reload, toast }) {
       <Origins key={Object.keys(origins).join()} origins={origins} reload={reload} toast={toast} />
       <Templates value={settings.wa_templates || {}} reload={reload} toast={toast} />
       <Tuning value={settings.tuning || TUNE} reload={reload} toast={toast} />
+      <GroupMin value={settings.group_wa?.min ?? 3} reload={reload} toast={toast} />
       <ReturnGps value={settings.return_gps?.check !== false} reload={reload} toast={toast} />
       <Aliases value={settings.aliases || []} orders={orders} reload={reload} toast={toast} />
     </div>
@@ -97,6 +100,18 @@ function Tuning({ value, reload, toast }) {
       {[1, 2, 3].map(b => <Field key={b} id={`sp-${b}`} label={`Kecepatan Batch ${b} (${BATCH[b].label}), km/jam`}><input id={`sp-${b}`} type="number" min="5" max="60" value={v.speed[b]} onChange={e => setV({ ...v, speed: { ...v.speed, [b]: e.target.value } })} /></Field>)}
       <Field id="stop" label="Waktu berhenti per alamat (menit)"><input id="stop" type="number" min="1" max="60" value={v.stop} onChange={e => setV({ ...v, stop: e.target.value })} /></Field></div>
     <button className="btn primary" onClick={save}>Simpan</button></section>);
+}
+
+function GroupMin({ value, reload, toast }) {
+  const [v, setV] = useState(value);
+  async function save() {
+    if (!(+v >= 2 && +v <= 100)) return toast("Isi angka 2 sampai 100");
+    try { await saveSetting("group_wa", { min: +v }); toast("Batas pesanan grup disimpan"); reload(); } catch (e) { toast("Gagal: " + e.message); }
+  }
+  return (<section className="panel"><h2>Pesanan grup (1 pemesan, banyak penerima)</h2>
+    <p className="note">Kalau 1 No HP pemesan punya sebanyak ini penerima atau lebih di tanggal kirim yang sama, pemesan cukup dapat 2 WhatsApp: saat kiriman pertama berangkat & saat semua selesai, dengan 1 link untuk memantau semua penerima. Penerima tetap dapat WhatsApp masing-masing. Gagal kirim tetap langsung dikabarkan.</p>
+    <div className="row"><Field id="grp-min" label="Minimal jumlah penerima"><input id="grp-min" type="number" min="2" max="100" value={v} onChange={e => setV(e.target.value)} /></Field>
+      <button className="btn primary" style={{ alignSelf: "flex-end" }} onClick={save}>Simpan</button></div></section>);
 }
 
 function ReturnGps({ value, reload, toast }) {

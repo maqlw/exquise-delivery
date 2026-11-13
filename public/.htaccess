@@ -4,6 +4,7 @@ RewriteBase /
 RewriteRule ^index\.html$ - [L]
 # Link lacak lewat lacak.php supaya kartu preview WhatsApp berisi nama penerima & produk
 RewriteRule ^lacak/([A-Za-z0-9]+)/?$ lacak.php?t=$1 [L,QSA]
+RewriteRule ^g/([A-Za-z0-9]+)/?$ lacak.php?g=$1 [L,QSA]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule . /index.html [L]

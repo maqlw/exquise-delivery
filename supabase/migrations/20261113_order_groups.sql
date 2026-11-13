@@ -1,0 +1,4 @@
+-- Diterapkan ke Supabase (migrasi "order_groups"):
+-- tabel order_groups (token, sender_phone, ship_date, started_sent_at, done_sent_at), unik per pemesan+tanggal;
+-- settings 'group_wa' = {"min": 3}; template wa grup_mulai & grup_selesai;
+-- RPC track_group(token) untuk halaman /g/<token> (anon boleh, hanya pesanan pemesan itu, tanpa pick up).
