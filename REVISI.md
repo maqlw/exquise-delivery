@@ -13,6 +13,7 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v009** | 13/11/2026 | Radius kembali ke outlet 500 m; transisi liquid glass di semua menu, tab & filter admin; tombol mata di login. |
 | **v008** | 13/11/2026 | Kurir wajib kembali ke outlet (cek GPS) atau minta izin pulang ke admin; tombol Kirim lebih jelas; transisi liquid glass antar batch. |
 | **v007** | 13/11/2026 | Tampilan HP admin: tombol Keluar di header, menu ikon saja (nama muncul di menu yang dibuka). |
 | **v006** | 13/11/2026 | Perbaikan bug: pesanan tambahan di batch yang sudah dikirim sekarang bisa di-dispatch. |
@@ -21,6 +22,12 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 | **v003** | 13/11/2026 | Kartu preview pakai logo Exquise (navy) di background krem + aksen terakota. |
 | **v002** | 13/11/2026 | Kartu preview WhatsApp untuk link lacak (gambar Exquise + nama penerima & produk). |
 | **v001** | 13/11/2026 | Titik awal riwayat versi. Berisi semua fitur sampai hari ini (rincian di bawah). |
+
+## v009 · 13/11/2026 · radius 500 m, liquid glass di admin, mata password
+- "Saya sudah kembali di outlet" diterima kalau GPS kurir **maks. 500 m** dari titik outlet (sebelumnya 1 km).
+- Pil kaca meluncur & memantul otomatis di **semua** grup tombol: menu samping (laptop & HP), tab Batch, pilihan lokasi asal, filter Data pengiriman, rentang & tingkat Laporan, pilihan Admin/Kurir di login (`src/lib/glass.js`).
+- Pindah halaman admin, pindah batch/lokasi di Dispatch, dan ganti Admin/Kurir di login: isi masuk meluncur + memudar sesuai arah.
+- Login: tombol **mata** untuk menampilkan/menyembunyikan password (admin) dan PIN (kurir).
 
 ## v008 · 13/11/2026 · kembali ke outlet & izin pulang
 - **Rute kurir internal baru selesai setelah kembali ke outlet.** Setelah alamat terakhir, HP kurir menampilkan kartu "Kembali ke CK/Depok": tombol **"Saya sudah kembali di …"** mengecek GPS (harus ≤ 1 km dari titik outlet). GPS tetap terkirim selama perjalanan balik, jadi leader bisa memantau.

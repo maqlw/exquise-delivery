@@ -51,7 +51,7 @@ export default function Dispatch({ orders, origins, couriers, P, date, ui, setUi
       {Object.values(origins).map(x => <button key={x.id} aria-pressed={x.id === oid} onClick={() => setUi({ ...ui, origin: x.id })}>{x.short} <small>{[1, 2, 3].reduce((a, y) => a + P[x.id][y].count, 0)}</small></button>)}</div>
     <div className="tabs" role="group" aria-label="Batch" style={{ marginTop: 12 }}>
       {[1, 2, 3].map(x => <button key={x} aria-pressed={x === b} onClick={() => setUi({ ...ui, batch: x })}>Batch {x}{P[oid][x].sent ? " ✓" : ""}{P[oid][x].extra && <span className="badge-add">+{P[oid][x].extra.count} tambahan</span>}<small>{BATCH[x].label} · {P[oid][x].count} alamat</small></button>)}</div>
-    <div className="grid"><div className="stack">
+    <div className="grid swap-r" key={oid + b}><div className="stack">
       <div className="kpis"><div className="kpi"><span>Alamat</span><b>{B.count}</b></div><div className="kpi"><span>Total jarak</span><b>{fmtKm(totalKm)}</b></div><div className="kpi"><span>Selesai paling akhir</span><b>{B.count ? hhmm(end) : "–"}</b></div><div className={`kpi ${late ? "bad" : "ok"}`}><span>Lewat request jam</span><b>{late}</b></div></div>
       {!list.length && <div className="banner warn">Belum ada kurir aktif di {org.short}. Tambahkan di menu Kurir.</div>}
       {cek > 0 && <div className="banner warn">{cek} alamat dari {org.short} belum punya titik peta dan belum masuk rute. <a href="#upload">Perbaiki di Data pengiriman</a>.</div>}

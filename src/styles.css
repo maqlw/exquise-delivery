@@ -331,3 +331,19 @@ ol.stops li:first-child{border-top:0}
 .btn.home{background:#fff;color:#0d3144;border:1.5px solid #0d3144}
 .homereq{border:2px solid var(--warn,#c26a12)}.homereq-row{border-top:1px solid var(--line);padding-top:10px;flex-wrap:wrap;gap:8px}
 @media (prefers-reduced-motion:reduce){.glass-pill,.glass-pill.wob,.swap-r,.swap-l{transition:none!important;animation:none!important}}
+/* Pil kaca global (lib/glass.js) untuk .seg, .tabs, menu samping */
+.seg,.tabs,.side nav{position:relative}
+.seg>button,.tabs>button,.side nav>a{position:relative;z-index:1}
+.seg>.glass-pill{border-radius:999px}
+.seg button[aria-pressed="true"]{background:transparent;color:#0f1b13;font-weight:800}
+.tabs>.glass-pill{border-radius:16px;background:linear-gradient(180deg,#2a3d31,#0f1b13);border:1px solid rgba(255,255,255,.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 10px 22px rgba(15,27,19,.28)}
+.tabs button[aria-pressed="true"]{background:transparent;border-color:transparent;color:#fff}
+.side nav>.glass-pill{border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,.04));border:1px solid var(--side-line);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 8px 20px rgba(0,0,0,.25)}
+.side nav a[aria-current="page"]{background:transparent;box-shadow:none}
+/* Pindah halaman / batch: isi masuk meluncur sesuai arah */
+.page-in{animation:swapR .45s cubic-bezier(.2,.8,.2,1) both}
+@media (prefers-reduced-motion:reduce){.page-in{animation:none!important}}
+/* Login: tombol mata untuk lihat password/PIN */
+.pw{position:relative;display:flex}.pw input{flex:1;padding-right:48px}
+.pw .eye{position:absolute;right:4px;top:50%;translate:0 -50%;width:40px;height:40px;border:0;border-radius:10px;background:transparent;color:var(--muted);display:grid;place-items:center;cursor:pointer}
+.pw .eye:hover{background:var(--sunk);color:var(--ink)}.pw .eye[aria-pressed="true"]{color:var(--accent)}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as api from "./lib/api.js";
 import { plan, status, todayYmd } from "./lib/logic.js";
 import { useToast, Logo } from "./components/ui.jsx";
@@ -58,6 +58,9 @@ export default function App() {
 function Admin({ email }) {
   const hash = useHash(), view = VIEWS[hash] ? hash : "dashboard", View = VIEWS[view];
   const [toastEl, toast] = useToast();
+  // Arah transisi halaman: menu ke bawah/kanan = masuk dari kanan, sebaliknya dari kiri.
+  const order = NAV.map(n => n[0]), prev = useRef(view), dir = order.indexOf(view) >= order.indexOf(prev.current) ? "swap-r" : "swap-l";
+  useEffect(() => { prev.current = view; }, [view]);
   const [master, setMaster] = useState(null), [day, setDay] = useState(null), [date, setDate] = useState(null), [dates, setDates] = useState([]);
   const [ui, setUi] = useState({ origin: "ck", batch: 1, filter: "all", lacak: null, q: "" });
   const [modal, setModal] = useState(null);
@@ -117,7 +120,7 @@ function Admin({ email }) {
         <div className="who"><span className="avatar">{email.slice(0, 2).toUpperCase()}</span><div style={{ minWidth: 0, flex: 1 }}><b>Admin</b><span style={{ overflowWrap: "anywhere" }}>{email}</span></div>
           <button className="btn sm" style={{ background: "#1d2a22", color: "#fff" }} onClick={() => api.sb.auth.signOut()}>Keluar</button></div>
       </aside>
-      <div className="viewport"><main><HomeRequests {...ctx} /><View {...ctx} /></main></div>
+      <div className="viewport"><main><HomeRequests {...ctx} /><div key={view} className={`page-in ${dir}`}><View {...ctx} /></div></main></div>
     </div>
       {modal?.kind === "form" && <OrderForm order={modal.order} history={modal.history} origins={master.origins} defaults={{ ymd: date, origin: ui.origin, via: "internal" }} onClose={close} onSave={o => act.saveForm(o, modal.order)} />}
       {modal?.kind === "update" && <UpdateChoice order={modal.order} onClose={close} onKirim={() => act.kirim(modal.order)} onSampai={() => setModal({ kind: "sampai", order: modal.order })} />}

@@ -1,0 +1,2 @@
+-- Diterapkan ke Supabase (migrasi "return_radius_500m"): courier_return menerima posisi GPS maks. 0,5 km dari outlet
+-- (sebelumnya 1 km); pesan error menampilkan jarak dalam meter bila < 1 km.

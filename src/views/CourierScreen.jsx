@@ -115,7 +115,7 @@ export default function CourierScreen() {
               <p className="sub">Halaman ini cek otomatis tiap 20 detik. Kalau ternyata kamu kembali ke {org?.short}, tekan tombol di bawah.</p>
               <button className="btn primary big" disabled={busy} onClick={back}>{busy ? "Mengecek lokasi…" : `Saya sudah kembali di ${org?.short}`}</button></>
             : <><h2>{r.return_status === "ditolak" ? `Admin minta kamu kembali ke ${org?.short}` : `Kembali ke ${org?.short}`}</h2>
-              <p className="sub">Tekan saat sudah sampai di {org?.short}. Lokasi GPS kamu dicek, harus di sekitar outlet.</p>
+              <p className="sub">Tekan saat sudah sampai di {org?.short}. Lokasi GPS kamu dicek, maksimal 500 m dari outlet.</p>
               <button className="btn primary big" disabled={busy} onClick={back}>{busy ? "Mengecek lokasi…" : `Saya sudah kembali di ${org?.short}`}</button>
               {r.return_status !== "ditolak" && (homeForm ? <div className="stack" style={{ gap: 8 }}>
                   <label className="lbl" htmlFor="home-note">Alasan langsung pulang (opsional)</label>
