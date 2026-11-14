@@ -24,11 +24,11 @@ export const toDb = o => ({
 });
 
 export async function loadMaster() {
-  const [origins, couriers, st] = await Promise.all([sb.from("origins").select("*").order("id"), sb.from("couriers").select("*").order("created_at"), sb.from("settings").select("*")]);
+  const [origins, couriers, st, bl] = await Promise.all([sb.from("origins").select("*").order("id"), sb.from("couriers").select("*").order("created_at"), sb.from("settings").select("*"), sb.from("billing").select("*")]);
   const settings = Object.fromEntries(must(st).map(r => [r.key, r.value]));
   if (settings.tuning) Object.assign(TUNE, settings.tuning); // dipakai perencanaan rute & ETA
   ALIASES.splice(0, ALIASES.length, ...(settings.aliases || []));
-  return { origins: Object.fromEntries(must(origins).map(o => [o.id, o])), couriers: must(couriers), settings };
+  return { origins: Object.fromEntries(must(origins).map(o => [o.id, o])), couriers: must(couriers), settings, billing: Object.fromEntries((bl.data || []).map(r => [r.key, r.value])) };
 }
 export const saveSetting = async (key, value) => must(await sb.from("settings").upsert({ key, value, updated_at: new Date().toISOString() }));
 // Laporan: pesanan dalam rentang tanggal kirim (inklusif).
@@ -104,21 +104,29 @@ export async function fonnteApi(action, params = {}) {
   if (error) { let msg = error.message; try { msg = (await error.context.json()).error || msg; } catch { /* pakai pesan bawaan */ } throw new Error(msg); }
   return data;
 }
-// Top up kuota WhatsApp: pengajuan -> bukti transfer -> diproses penyedia jasa (manual).
-export async function createTopup(pkg, note) {
-  const t = must(await sb.from("topup_requests").insert({ package_name: pkg.name, package_desc: pkg.desc || null, amount: pkg.price, note: note || null }).select("*").single());
-  await fonnteApi("topup_notify", { id: t.id, event: "baru" }).catch(() => {}); // notifikasi gagal tidak membatalkan pengajuan
-  return t;
+// ===== Tagihan & invoice (langganan + top up WhatsApp) =====
+export const invoiceUrl = token => `${SITE}/invoice/${token}`;
+export const loadBilling = async () => Object.fromEntries(must(await sb.from("billing").select("*")).map(r => [r.key, r.value]));
+export const saveBilling = async (key, value) => must(await sb.from("billing").upsert({ key, value, updated_at: new Date().toISOString() }));
+export const listInvoices = async (limit = 100) => must(await sb.from("invoices").select("*").order("created_at", { ascending: false }).limit(limit));
+export const serviceStatus = async () => must(await sb.rpc("service_status"));
+export async function billingApi(action, params = {}) { // kirim invoice (WA/email) & kabari penyedia
+  const { data, error } = await sb.functions.invoke("billing", { body: { action, ...params } });
+  if (error) { let msg = error.message; try { msg = (await error.context.json()).error || msg; } catch { /* pakai pesan bawaan */ } throw new Error(msg); }
+  return data;
 }
-export async function payTopup(id, original) {
-  const file = await compressImage(original), path = `topup/${id}-${Date.now()}.jpg`;
+export async function createTopupInvoice(index, note) {
+  const inv = must(await sb.rpc("create_topup_invoice", { p_index: index, p_note: note || null }));
+  await billingApi("topup_notify", { id: inv.id, event: "baru" }).catch(() => {}); // notifikasi gagal tidak membatalkan pengajuan
+  return inv;
+}
+export async function submitProof(inv, original) {
+  const file = await compressImage(original), path = `invoice/${inv.token}-${Date.now()}.jpg`;
   must(await sb.storage.from("proofs").upload(path, file, { contentType: file.type }));
-  const t = must(await sb.from("topup_requests").update({ status: "dibayar", proof_path: path, paid_at: new Date().toISOString() }).eq("id", id).select("*").single());
-  await fonnteApi("topup_notify", { id, event: "dibayar" }).catch(() => {});
-  return t;
+  const r = must(await sb.rpc("submit_invoice_proof", { p_invoice: inv.id, p_path: path }));
+  await billingApi("topup_notify", { id: inv.id, event: "dibayar" }).catch(() => {});
+  return r;
 }
-export const listTopups = async (limit = 30) => must(await sb.from("topup_requests").select("*").order("created_at", { ascending: false }).limit(limit));
-export const setTopupStatus = async (id, status) => must(await sb.from("topup_requests").update({ status, ...(status === "selesai" ? { done_at: new Date().toISOString() } : {}) }).eq("id", id));
 export async function courierAccount(courierId, phone, pin) {
   const { data, error } = await sb.functions.invoke("courier-account", { body: { courier_id: courierId, phone, pin } });
   if (error) { let msg = error.message; try { msg = (await error.context.json()).error || msg; } catch { /* pakai pesan bawaan */ } throw new Error(msg); }

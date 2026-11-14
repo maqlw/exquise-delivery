@@ -9,7 +9,7 @@ const FILTERS = [["all", "Semua"], ["draft", "Belum dikirim"], ["jalan", "Dikiri
 const isLocked = o => ["jalan", "sampai", "gagal", "siap"].includes(o.ship);
 const inFilter = (o, f) => { const s = status(o); return f === "all" || (f === "draft" ? ["draft", "siap"].includes(s) : s === f); };
 
-export default function Upload({ orders, origins, date, dates, setDate, ui, setUi, reload, toast, act }) {
+export default function Upload({ orders, origins, date, dates, setDate, ui, setUi, reload, toast, act, locked }) {
   const [sel, setSel] = useState(() => new Set()), [bulk, setBulk] = useState({ via: "", origin: "", batch: "" }), [q, setQ] = useState(""), [busy, setBusy] = useState(false), [over, setOver] = useState(false), [errors, setErrors] = useState(null);
   async function readFile(f) {
     if (!f) return;
@@ -53,8 +53,8 @@ export default function Upload({ orders, origins, date, dates, setDate, ui, setU
   const head = (
     <div className="row between"><div><h1>Data pengiriman</h1>
       <p className="sub">Tanggal kirim <select value={date} onChange={e => setDate(e.target.value)} aria-label="Tanggal kirim">{[...new Set([date, ...dates])].map(d => <option key={d} value={d}>{dmy(d)}</option>)}</select> · {orders.length} pesanan</p></div>
-      <div className="row"><button className="btn ok" onClick={act.add}>+ Tambah manual</button>
-        <label className="btn ghost" htmlFor="file">{busy ? <><span className="spin" /> Membaca…</> : "Upload Excel"}</label>{fileInput}
+      <div className="row"><button className="btn ok" disabled={locked} title={locked ? "Langganan nonaktif" : undefined} onClick={act.add}>+ Tambah manual</button>
+        {locked ? <span className="btn ghost" aria-disabled="true" style={{ opacity: .5 }}>Upload Excel</span> : <label className="btn ghost" htmlFor="file">{busy ? <><span className="spin" /> Membaca…</> : "Upload Excel"}</label>}{fileInput}
         <a className="btn primary" href="#dispatch">Susun rute ({orders.filter(routable).length}) →</a></div></div>);
   const report = errors && (
     <div className={`banner ${errors.list.length ? "bad" : "ok"}`} style={{ marginTop: 12 }}>

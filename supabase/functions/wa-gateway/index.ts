@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
   if (!isAdmin) return json({ error: "Hanya admin" }, 403);
   const { data: { user } } = await asUser.auth.getUser();
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-  const { action, token: newToken, type, whatsapp, id, event } = await req.json().catch(() => ({}));
+  const { action, token: newToken, type, whatsapp } = await req.json().catch(() => ({}));
   const { data: sec } = await db.from("app_secrets").select("value").eq("key", "fonnte_token").maybeSingle();
   const token = sec?.value || Deno.env.get("FONNTE_TOKEN") || "", source = sec?.value ? "pengaturan" : "server";
   try {
@@ -40,19 +40,6 @@ Deno.serve(async (req) => {
       return json(profile(d, t, "pengaturan"));
     }
     if (!token) return json({ ok: false, reason: "Token WhatsApp Gateway belum diatur", source: "kosong" });
-    if (action === "topup_notify") { // kabari penyedia jasa: pengajuan baru / bukti transfer masuk
-      const { data: t } = await db.from("topup_requests").select("*").eq("id", id).maybeSingle();
-      const { data: st } = await db.from("settings").select("value").eq("key", "topup").maybeSingle();
-      const to = String(st?.value?.notify_phone ?? "").replace(/\D/g, "").replace(/^0/, "62");
-      if (!t || to.length < 10) return json({ sent: false, reason: !t ? "Pengajuan tidak ditemukan" : "No HP penerima notifikasi belum diatur" });
-      const rp = "Rp " + Number(t.amount).toLocaleString("id-ID");
-      const proof = t.proof_path ? `${Deno.env.get("SUPABASE_URL")}/storage/v1/object/public/proofs/${t.proof_path}` : "";
-      const text = event === "dibayar"
-        ? `💸 Bukti transfer top up masuk\nPaket: ${t.package_name}\nTotal: ${rp}\nDari: ${user?.email ?? "-"}\nBukti: ${proof}\n\nProses top up lalu tandai Selesai di Pengaturan → Top up WhatsApp.`
-        : `🧾 Pengajuan top up WhatsApp baru\nPaket: ${t.package_name}\nTotal: ${rp}\nDari: ${user?.email ?? "-"}${t.note ? `\nCatatan: ${t.note}` : ""}`;
-      const d = await fonnte("send", token, { target: to, message: text, countryCode: "62" });
-      return json({ sent: d.status === true || d.status === "true" });
-    }
     if (action === "status") return json(profile(await fonnte("device", token), token, source));
     if (action === "qr") { // type: "qr" (gambar) atau "code" (kode sambung, perlu nomor WhatsApp)
       const fields: Record<string, string> = { type: type === "code" ? "code" : "qr" };

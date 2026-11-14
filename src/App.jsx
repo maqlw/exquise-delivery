@@ -17,8 +17,11 @@ import TrackPublic from "./views/TrackPublic.jsx";
 import TrackGroup from "./views/TrackGroup.jsx";
 import Report from "./views/Report.jsx";
 import Settings from "./views/Settings.jsx";
+import Billing, { ServiceBanner } from "./views/Billing.jsx";
+import ProviderApp from "./views/ProviderApp.jsx";
+import InvoicePage from "./views/InvoicePage.jsx";
 
-const VIEWS = { dashboard: Dashboard, upload: Upload, dispatch: Dispatch, kurir: CourierAdmin, lacak: Lacak, laporan: Report, pengaturan: Settings };
+const VIEWS = { dashboard: Dashboard, upload: Upload, dispatch: Dispatch, kurir: CourierAdmin, lacak: Lacak, laporan: Report, tagihan: Billing, pengaturan: Settings };
 const NAV = [
   ["dashboard", "Dashboard", <path key="i" d="M3 11 12 3l9 8v10h-6v-6H9v6H3V11Z" fill="currentColor" />],
   ["upload", "Data pengiriman", <path key="i" d="M12 16V4m0 0-5 5m5-5 5 5M4 20h16" fill="none" stroke="currentColor" strokeWidth="2" />],
@@ -26,6 +29,7 @@ const NAV = [
   ["kurir", "Kurir", <g key="i" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7" /><circle cx="7" cy="18" r="2" /><circle cx="17" cy="18" r="2" /></g>],
   ["lacak", "Lacak pesanan", <g key="i" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11Z" /><circle cx="12" cy="10" r="2.5" /></g>],
   ["laporan", "Laporan", <path key="i" d="M4 20V10m6 10V4m6 16v-7m4 7H2" fill="none" stroke="currentColor" strokeWidth="2" />],
+  ["tagihan", "Tagihan", <g key="i" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z" /><path d="M9 8h6M9 12h6" /></g>],
   ["pengaturan", "Pengaturan", <g key="i" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3" /><path d="M12 2v3m0 14v3M2 12h3m14 0h3M4.9 4.9l2.1 2.1m10 10 2.1 2.1M4.9 19.1 7 17m10-10 2.1-2.1" /></g>],
 ];
 const useHash = () => { const [h, setH] = useState(location.hash.slice(1)); useEffect(() => { const f = () => setH(location.hash.slice(1)); addEventListener("hashchange", f); return () => removeEventListener("hashchange", f); }, []); return h; };
@@ -33,9 +37,10 @@ const useHash = () => { const [h, setH] = useState(location.hash.slice(1)); useE
 
 export default function App() {
   const track = location.pathname.match(/^\/lacak\/([A-Za-z0-9]+)/), grp = location.pathname.match(/^\/g\/([A-Za-z0-9]+)/);
+  const invoice = location.pathname.match(/^\/invoice\/([A-Za-z0-9]+)/), provider = /^\/penyedia\/?$/.test(location.pathname);
   const [session, setSession] = useState(undefined), [role, setRole] = useState(null);
   useEffect(() => {
-    if (track || grp) return;
+    if (track || grp || invoice || provider) return;
     api.sb.auth.getSession().then(({ data }) => setSession(data.session));
     const { data } = api.sb.auth.onAuthStateChange((_e, s) => setSession(s));
     return () => data.subscription.unsubscribe();
@@ -50,6 +55,8 @@ export default function App() {
     })();
   }, [session?.user?.id]);
   if (track) return <TrackPublic token={track[1]} />;
+  if (invoice) return <InvoicePage token={invoice[1]} />;
+  if (provider) return <ProviderApp />;
   if (grp) return <TrackGroup token={grp[1]} />;
   if (session === undefined || (session && !role)) return <div className="login"><span className="spin" aria-label="Memuat" /></div>;
   if (!session) return <Login />;
@@ -66,7 +73,8 @@ function Admin({ email }) {
   useEffect(() => { prev.current = view; }, [view]);
   const [master, setMaster] = useState(null), [day, setDay] = useState(null), [date, setDate] = useState(null), [dates, setDates] = useState([]);
   const [ui, setUi] = useState({ origin: "ck", batch: 1, filter: "all", lacak: null, q: "" });
-  const [modal, setModal] = useState(null), [wa, setWa] = useState(null);
+  const [modal, setModal] = useState(null), [wa, setWa] = useState(null), [svc, setSvc] = useState(null);
+  useEffect(() => { api.serviceStatus().then(setSvc).catch(() => {}); }, []); // status langganan: aktif / tenggang / nonaktif
   // Status WhatsApp Gateway: kuota, kedaluwarsa, terhubung. Dimuat sekali, bisa dicek ulang dari Dashboard/Pengaturan.
   const reloadWa = useCallback(() => api.fonnteApi("status").then(setWa).catch(e => setWa({ ok: false, reason: e.message })), []);
   useEffect(() => { reloadWa(); }, [reloadWa]);
@@ -110,7 +118,7 @@ function Admin({ email }) {
     async remove(o) { await api.deleteOrder(o.id); setModal(null); toast(`Pesanan ${o.code} dihapus`); reload(); },
   };
   const close = () => setModal(null);
-  const ctx = { ...master, ...day, wa, setWa, reloadWa, P, date, dates, ui, setUi, reload, toast, act, courier, setDate: d => reload(d) };
+  const ctx = { ...master, ...day, wa, setWa, reloadWa, svc, locked: svc?.status === "nonaktif", P, date, dates, ui, setUi, reload, toast, act, courier, setDate: d => reload(d) };
 
   return (
     <div className="frame"><div className="frame-inner">
@@ -126,7 +134,7 @@ function Admin({ email }) {
         <div className="who"><span className="avatar">{email.slice(0, 2).toUpperCase()}</span><div style={{ minWidth: 0, flex: 1 }}><b>Admin</b><span style={{ overflowWrap: "anywhere" }}>{email}</span></div>
           <button className="btn sm" style={{ background: "#1d2a22", color: "#fff" }} onClick={() => api.sb.auth.signOut()}>Keluar</button></div>
       </aside>
-      <div className="viewport"><main><WaAlert wa={wa} settings={master.settings} /><HomeRequests {...ctx} /><div key={view} className={`page-in ${dir}`}><View {...ctx} /></div></main></div>
+      <div className="viewport"><main><ServiceBanner svc={svc} /><WaAlert wa={wa} settings={master.settings} /><HomeRequests {...ctx} /><div key={view} className={`page-in ${dir}`}><View {...ctx} /></div></main></div>
     </div>
       {modal?.kind === "form" && <OrderForm order={modal.order} history={modal.history} origins={master.origins} defaults={{ ymd: date, origin: ui.origin, via: "internal" }} onClose={close} onSave={o => act.saveForm(o, modal.order)} />}
       {modal?.kind === "update" && <UpdateChoice order={modal.order} onClose={close} onKirim={() => act.kirim(modal.order)} onSampai={() => setModal({ kind: "sampai", order: modal.order })} />}

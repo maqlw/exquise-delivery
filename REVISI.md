@@ -13,6 +13,7 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v015** | 14/11/2026 | Tagihan langganan: panel penyedia (/penyedia), invoice online + unduh PDF dengan cap LUNAS, menu Tagihan admin, masa tenggang & kunci layanan saat nonaktif, kirim invoice via WA/email (bisa dinyalakan/dimatikan). Top up WhatsApp sekarang lewat invoice. |
 | **v014** | 14/11/2026 | Form top up sendiri (paket & harga sendiri, bukti transfer, notifikasi WA ke penyedia jasa); nama penyedia disembunyikan jadi "WhatsApp Gateway". |
 | **v013** | 14/11/2026 | Fonnte: ganti token dari Pengaturan, sisa kuota & kedaluwarsa + Top up di Dashboard, sambung ulang via QR/kode, peringatan otomatis. |
 | **v012** | 13/11/2026 | No HP disamarkan (081xxx1234) di link publik; browser selalu ambil versi website terbaru. |

@@ -4,7 +4,7 @@ import { Pill, Empty, StopInfo } from "../components/ui.jsx";
 import { BATCH, VIA, status, hhmm, fmtKm, dmy, returnLabel } from "../lib/logic.js";
 import { updateOrder, sendRoutes, sendExtra, lalamove } from "../lib/api.js";
 
-export default function Dispatch({ orders, origins, couriers, P, date, ui, setUi, reload, toast, routes, positions, act }) {
+export default function Dispatch({ orders, origins, couriers, P, date, ui, setUi, reload, toast, routes, positions, act, locked }) {
   const [busy, setBusy] = useState(false);
   if (!orders.length) return <Empty title="Belum ada pengiriman" desc="Upload file Excel atau tambah pesanan manual dulu."><a className="btn primary" href="#upload">Ke Data pengiriman</a></Empty>;
   const oid = ui.origin, b = ui.batch, B = P[oid][b], org = origins[oid], list = couriers.filter(c => c.origin_id === oid && c.active);
@@ -61,9 +61,9 @@ export default function Dispatch({ orders, origins, couriers, P, date, ui, setUi
       {B.extra && <section className="panel extra"><h2>Tambahan Batch {b} · {B.extra.count} alamat</h2>
         <p className="note">Masuk setelah rute Batch {b} dikirim. Kurir mengambil kuenya di {org.short}, lalu alamat ini muncul di HP kurir setelah rutenya yang sekarang.</p>
         {cards(B.extra.routes, false)}
-        <button className="btn primary big" disabled={busy || !list.length} onClick={sendAdd}>{busy ? "Mengirim…" : `Kirim ${B.extra.count} alamat tambahan ke kurir`}</button></section>}
+        <button className="btn primary big" disabled={busy || !list.length || locked} onClick={sendAdd}>{busy ? "Mengirim…" : `Kirim ${B.extra.count} alamat tambahan ke kurir`}</button></section>}
       <div className="row">{B.sent ? <><div className="banner ok" style={{ flex: 1 }}>Rute Batch {b} sudah dikirim ke kurir. Status berubah dari aksi kurir.</div><a className="btn ghost" href="#lacak">Pantau di Lacak →</a></>
-        : <button className="btn primary big" onClick={send} disabled={!B.count || busy || !list.length}>{busy ? "Mengirim…" : `Kirim rute Batch ${b} ke kurir ${org.short}`}</button>}</div>
+        : <button className="btn primary big" onClick={send} disabled={!B.count || busy || !list.length || locked}>{busy ? "Mengirim…" : `Kirim rute Batch ${b} ke kurir ${org.short}`}</button>}</div>
       <section className="panel"><h2>Pihak ketiga · {ext.length}</h2><p className="note">Pesan lewat aplikasinya seperti biasa, lalu tempel link tracking supaya muncul di halaman lacak customer.</p>
         {ext.length ? <ol className="stops">{ext.map(o => <ExtRow key={o.id} o={o} save={save} toast={toast} reload={reload} act={act} />)}</ol> : <p className="note">Belum ada.</p>}</section>
       <section className="panel"><h2>Pick up · {pick.length}</h2>{pick.length ? <ol className="stops">{pick.map(o => <li key={o.id}><span className="num" style={{ background: "var(--muted)" }}>P</span><div><div className="addr">{o.recipient}</div><div className="meta">{o.address} · {o.item}</div></div><span /></li>)}</ol> : <p className="note">Tidak ada.</p>}</section>

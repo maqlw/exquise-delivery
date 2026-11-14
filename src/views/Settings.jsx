@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
 import { Field } from "../components/ui.jsx";
 import { AreaPicker } from "../components/AreaPicker.jsx";
-import { sb, saveSetting, updateOrder, toDb, fonnteApi, listTopups, setTopupStatus, proofUrl } from "../lib/api.js";
-import { rp, TOPUP_LABEL, TOPUP_PILL } from "../components/WhatsApp.jsx";
-import { Pill } from "../components/ui.jsx";
+import { sb, saveSetting, updateOrder, toDb, fonnteApi } from "../lib/api.js";
 import { TUNE, BATCH, recompute, normPhone } from "../lib/logic.js";
 
 const parseLL = v => { const m = String(v).match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/); return m && Math.abs(+m[1]) <= 90 && Math.abs(+m[2]) <= 180 ? [+m[1], +m[2]] : null; };
@@ -24,7 +22,6 @@ export default function Settings({ origins, settings, orders, reload, toast, wa,
     <h1>Pengaturan</h1><p className="sub">Lokasi asal, kata-kata WhatsApp, perkiraan waktu tempuh, dan alamat langganan.</p>
     <div className="stack" style={{ marginTop: 16 }}>
       <Gateway wa={wa} setWa={setWa} reloadWa={reloadWa} min={settings.wa_alert?.min_quota ?? 100} reload={reload} toast={toast} />
-      <Topup value={settings.topup || {}} reload={reload} toast={toast} />
       <Origins key={Object.keys(origins).join()} origins={origins} reload={reload} toast={toast} />
       <Templates value={settings.wa_templates || {}} reload={reload} toast={toast} />
       <Tuning value={settings.tuning || TUNE} reload={reload} toast={toast} />
@@ -138,43 +135,6 @@ function Gateway({ wa, setWa, reloadWa, min, reload, toast }) {
     <div className="row"><Field id="wa-min" label="Peringatkan kalau kuota di bawah (pesan)"><input id="wa-min" type="number" min="0" value={lim} onChange={e => setLim(e.target.value)} /></Field>
       <button className="btn primary" style={{ alignSelf: "flex-end" }} disabled={busy === "lim"} onClick={saveLim}>Simpan</button></div>
     <p className="note">Peringatan juga muncul kalau WhatsApp terputus atau paket kedaluwarsa dalam 3 hari.</p></section>);
-}
-
-function Topup({ value, reload, toast }) {
-  const [pk, setPk] = useState(value.packages?.length ? value.packages : [{ name: "", desc: "", price: "" }]), [pay, setPay] = useState(value.payment || ""), [ph, setPh] = useState(value.notify_phone || "");
-  const [hist, setHist] = useState(null), [busy, setBusy] = useState(false);
-  const loadHist = () => listTopups(30).then(setHist).catch(e => toast(e.message));
-  useEffect(() => { loadHist(); }, []);
-  const set = (i, k) => e => setPk(pk.map((p, j) => j === i ? { ...p, [k]: e.target.value } : p));
-  async function save() {
-    const packages = pk.filter(p => p.name.trim()).map(p => ({ name: p.name.trim(), desc: p.desc.trim(), price: Math.round(+String(p.price).replace(/\D/g, "")) }));
-    if (packages.some(p => !(p.price > 0))) return toast("Setiap paket wajib punya harga");
-    const notify_phone = normPhone(ph).p || null;
-    if (ph.trim() && !notify_phone) return toast("No HP notifikasi tidak valid");
-    setBusy(true);
-    try { await saveSetting("topup", { packages, payment: pay.trim(), notify_phone }); toast("Pengaturan top up disimpan"); reload(); } catch (e) { toast("Gagal: " + e.message); }
-    setBusy(false);
-  }
-  const mark = async (t, status) => { try { await setTopupStatus(t.id, status); toast(status === "selesai" ? "Ditandai selesai" : "Dibatalkan"); loadHist(); } catch (e) { toast(e.message); } };
-  return (<section className="panel"><h2>Top up WhatsApp</h2>
-    <p className="note">Paket & harga yang muncul di tombol <b>Top up</b> Dashboard. Setiap pengajuan dan bukti transfer dikabarkan lewat WhatsApp ke No HP di bawah.</p>
-    {pk.map((p, i) => <div className="form" key={i} style={{ borderTop: "1px solid var(--line)", paddingTop: 10 }}>
-      <Field id={`tp-n-${i}`} label="Nama paket"><input id={`tp-n-${i}`} value={p.name} onChange={set(i, "name")} placeholder="Paket 1 bulan" /></Field>
-      <Field id={`tp-p-${i}`} label="Harga (Rp)"><input id={`tp-p-${i}`} inputMode="numeric" value={p.price} onChange={set(i, "price")} placeholder="150000" /></Field>
-      <Field id={`tp-d-${i}`} full label="Keterangan"><input id={`tp-d-${i}`} value={p.desc} onChange={set(i, "desc")} placeholder="Masa aktif 30 hari + kuota 1.000 pesan" /></Field>
-      <div className="row full"><button className="btn ghost sm danger" onClick={() => setPk(pk.filter((_, j) => j !== i))}>Hapus paket</button></div></div>)}
-    <button className="btn ghost" onClick={() => setPk([...pk, { name: "", desc: "", price: "" }])}>+ Tambah paket</button>
-    <div className="form" style={{ marginTop: 12 }}>
-      <Field id="tp-pay" full label="Instruksi pembayaran"><textarea id="tp-pay" rows="3" value={pay} onChange={e => setPay(e.target.value)} placeholder={"Transfer ke BCA 1234567890 a.n. …\natau scan QRIS"} /></Field>
-      <Field id="tp-ph" full label="No HP yang dikabari setiap ada pengajuan"><input id="tp-ph" inputMode="tel" value={ph} onChange={e => setPh(e.target.value)} placeholder="08…" /></Field></div>
-    <button className="btn primary" disabled={busy} onClick={save}>{busy ? "Menyimpan…" : "Simpan pengaturan top up"}</button>
-    <h3 style={{ marginTop: 18 }}>Riwayat top up</h3>
-    {!hist ? <p className="note">Memuat…</p> : !hist.length ? <p className="note">Belum ada pengajuan.</p>
-      : <ul className="hist">{hist.map(t => <li key={t.id} className="row between" style={{ flexWrap: "wrap", gap: 8 }}>
-        <div><b>{t.package_name}</b> · {rp(t.amount)} <Pill s={TOPUP_PILL[t.status]}>{TOPUP_LABEL[t.status]}</Pill>
-          <div className="meta">{new Date(t.created_at).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}{t.note ? ` · ${t.note}` : ""}{t.proof_path && <> · <a href={proofUrl(t.proof_path)} target="_blank" rel="noopener">bukti transfer</a></>}</div></div>
-        {["menunggu", "dibayar"].includes(t.status) && <div className="row"><button className="btn ok sm" onClick={() => mark(t, "selesai")}>Tandai selesai</button><button className="btn ghost sm danger" onClick={() => mark(t, "batal")}>Batalkan</button></div>}</li>)}</ul>}
-  </section>);
 }
 
 function GroupMin({ value, reload, toast }) {

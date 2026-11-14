@@ -20,12 +20,12 @@ function HourChart({ rows, batch }) {
   );
 }
 
-export default function Dashboard({ orders, origins, couriers, P, date, dates, setDate, ui, setUi, positions, routes, wa, reloadWa, settings, toast }) {
+export default function Dashboard({ orders, origins, couriers, P, date, dates, setDate, ui, setUi, positions, routes, wa, reloadWa, settings, billing, toast }) {
   const top = (
     <div className="topbar"><h1>Dashboard</h1><div className="grow" />
       <label className="datepill"><i />Kirim <select value={date} onChange={e => setDate(e.target.value)} aria-label="Tanggal kirim" style={{ border: 0, background: "transparent", fontWeight: 600 }}>{[...new Set([date, ...dates])].map(d => <option key={d} value={d}>{dmy(d)}</option>)}</select></label>
       <a className="btn primary" href="#upload">Upload Excel</a></div>);
-  const waCard = <WaCard wa={wa} reloadWa={reloadWa} settings={settings} toast={toast} />;
+  const waCard = <WaCard wa={wa} reloadWa={reloadWa} settings={settings} billing={billing} toast={toast} />;
   if (!orders.length) return <>{top}{waCard}<Empty title="Belum ada pengiriman di tanggal ini" desc="Upload file Excel atau tambah pesanan manual di menu Data pengiriman."><a className="btn primary" href="#upload">Ke Data pengiriman</a></Empty></>;
   const oid = ui.origin, b = ui.batch, org = origins[oid], active = couriers.filter(c => c.active);
   const routed = [];
