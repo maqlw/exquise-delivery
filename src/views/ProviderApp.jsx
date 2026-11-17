@@ -111,6 +111,20 @@ function Panel({ email }) {
   </div>);
 }
 
+// Cek link DOKU sebelum disimpan. Isi halaman DOKU (nominal) tidak bisa dibaca dari luar, jadi admin diminta membuka & mencocokkan sendiri.
+export function LinkCheck({ url, price, others = [] }) {
+  const v = (url || "").trim(); if (!v) return null;
+  let u = null; try { u = new URL(v); } catch { /* bukan URL */ }
+  const doku = !!u && u.protocol === "https:" && /(^|\.)doku\.com$/i.test(u.hostname), plink = doku && /^\/p-link\/p\/[\w-]+\/?$/.test(u.pathname);
+  const dup = others.filter(o => o.url && o.url.trim() === v).map(o => o.name);
+  return (<div className="linkcheck full">
+    <div className="row">{!u ? <Pill s="bad">Link tidak valid</Pill> : !doku ? <Pill s="bad">Bukan link DOKU ({u.hostname})</Pill> : <Pill s="ok">✓ Link DOKU</Pill>}
+      {doku && !plink && <Pill s="warn">Format bukan link pembayaran (p-link)</Pill>}
+      {dup.length > 0 && <Pill s="warn">Sama dengan link {dup.join(", ")}</Pill>}
+      {u && <a className="btn ghost sm" href={v} target="_blank" rel="noopener">Buka & cek ↗</a>}</div>
+    {doku && <p className="note">Buka link, pastikan nominal di halaman DOKU <b>{rp(price)}</b> dan nama tagihannya benar.</p>}</div>);
+}
+
 function Cycle({ b, run }) {
   const [c, setC] = useState({ active_until: b.cycle?.active_until || "", grace_workdays: b.cycle?.grace_workdays ?? 7 });
   return (<section className="panel"><h2>Siklus tagihan</h2><p className="note">Aktif sampai batas aktif → masa tenggang (hari kerja) → nonaktif. Saat nonaktif, admin Exquise tidak bisa upload/menambah pesanan atau mengirim rute baru (lihat & lacak tetap jalan). Tagihan langganan yang ditandai lunas memajukan batas aktif ke tanggal 20 bulan berikutnya.</p>
@@ -131,7 +145,8 @@ function Plan({ b, run }) {
       <Field id="pl-nr" label="Harga normal (opsional)"><input id="pl-nr" inputMode="numeric" value={p.normal ?? ""} onChange={set("normal")} /></Field>
       <Field id="pl-pr" label="Harga promo / tagihan"><input id="pl-pr" inputMode="numeric" value={p.price} onChange={set("price")} /></Field>
       <Field id="pl-d" full label="Keterangan paket"><input id="pl-d" value={p.desc} onChange={set("desc")} /></Field>
-      <Field id="pl-l" full label="Link pembayaran DOKU (manual)"><input id="pl-l" type="url" value={p.pay_link} onChange={set("pay_link")} placeholder="https://pay.doku.com/…" /></Field>
+      <Field id="pl-l" full label="Link pembayaran DOKU (manual)"><input id="pl-l" type="url" value={p.pay_link} onChange={set("pay_link")} placeholder="https://pay.doku.com/p-link/p/…" /></Field>
+      <LinkCheck url={p.pay_link} price={num(p.price)} others={(b.topup?.packages || []).map(x => ({ name: `top up ${x.name}`, url: x.pay_link }))} />
       <Field id="pl-no" full label="Catatan penagihan (internal)"><textarea id="pl-no" rows="2" value={p.note} onChange={set("note")} placeholder="Contoh: Follow up PIC finance tanggal 18." /></Field></div>
     <p className="note">Link DOKU & harga dipakai saat tombol "Buat tagihan langganan" ditekan. Invoice yang sudah dibuat tidak berubah.</p>
     <button className="btn primary" onClick={() => run(() => { if (p.pay_link && !/^https:\/\//.test(p.pay_link)) throw new Error("Link harus diawali https://"); if (!(num(p.price) > 0)) throw new Error("Harga wajib diisi"); return saveBilling("plan", { ...p, price: num(p.price), normal: num(p.normal) || null, prefix: (p.prefix || "INV").toUpperCase().replace(/[^A-Z0-9]/g, "") }); }, "Paket disimpan")}>Simpan paket</button></section>);
@@ -141,19 +156,22 @@ function Topup({ b, run }) {
   const t = b.topup || {};
   const [pk, setPk] = useState(t.packages?.length ? t.packages : [{ name: "", desc: "", price: "" }]), [payTxt, setPayTxt] = useState(t.payment || ""), [ph, setPh] = useState(t.notify_phone || "");
   const set = (i, k) => e => setPk(pk.map((x, j) => j === i ? { ...x, [k]: e.target.value } : x));
-  return (<section className="panel"><h2>Top up WhatsApp</h2><p className="note">Paket & harga yang muncul di tombol <b>Top up</b> Dashboard admin Exquise. Pengajuan baru & bukti transfer dikabarkan lewat WhatsApp ke No HP di bawah.</p>
+  return (<section className="panel"><h2>Top up WhatsApp</h2><p className="note">Paket & harga yang muncul di tombol <b>Top up</b> Dashboard admin Exquise. Link DOKU tiap paket otomatis jadi tombol <b>Bayar</b> di invoice top up. Pengajuan baru & bukti transfer dikabarkan lewat WhatsApp ke No HP di bawah.</p>
     {pk.map((x, i) => <div className="form" key={i} style={{ borderTop: "1px solid var(--line)", paddingTop: 10 }}>
       <Field id={`tp-n-${i}`} label="Nama paket"><input id={`tp-n-${i}`} value={x.name} onChange={set(i, "name")} placeholder="Paket 1 bulan" /></Field>
       <Field id={`tp-p-${i}`} label="Harga (Rp)"><input id={`tp-p-${i}`} inputMode="numeric" value={x.price} onChange={set(i, "price")} /></Field>
       <Field id={`tp-d-${i}`} full label="Keterangan"><input id={`tp-d-${i}`} value={x.desc} onChange={set(i, "desc")} placeholder="Masa aktif 30 hari + kuota 1.000 pesan" /></Field>
+      <Field id={`tp-l-${i}`} full label="Link pembayaran DOKU paket ini"><input id={`tp-l-${i}`} type="url" value={x.pay_link || ""} onChange={set(i, "pay_link")} placeholder="https://pay.doku.com/p-link/p/…" /></Field>
+      <LinkCheck url={x.pay_link} price={num(x.price)} others={[{ name: "langganan", url: b.plan?.pay_link }, ...pk.filter((_, j) => j !== i).map(y => ({ name: y.name || "paket lain", url: y.pay_link }))]} />
       <div className="row full"><button className="btn ghost sm danger" onClick={() => setPk(pk.filter((_, j) => j !== i))}>Hapus paket</button></div></div>)}
     <button className="btn ghost" onClick={() => setPk([...pk, { name: "", desc: "", price: "" }])}>+ Tambah paket</button>
     <div className="form" style={{ marginTop: 12 }}>
       <Field id="tp-pay" full label="Instruksi pembayaran (tampil di invoice top up)"><textarea id="tp-pay" rows="3" value={payTxt} onChange={e => setPayTxt(e.target.value)} placeholder={"Transfer ke BCA … a.n. …\natau scan QRIS"} /></Field>
       <Field id="tp-ph" full label="No HP yang dikabari setiap ada pengajuan"><input id="tp-ph" inputMode="tel" value={ph} onChange={e => setPh(e.target.value)} placeholder="08…" /></Field></div>
     <button className="btn primary" onClick={() => run(() => {
-      const packages = pk.filter(x => x.name.trim()).map(x => ({ name: x.name.trim(), desc: x.desc.trim(), price: num(x.price) }));
+      const packages = pk.filter(x => x.name.trim()).map(x => ({ name: x.name.trim(), desc: x.desc.trim(), price: num(x.price), pay_link: (x.pay_link || "").trim() }));
       if (packages.some(x => !(x.price > 0))) throw new Error("Setiap paket wajib punya harga");
+      if (packages.some(x => x.pay_link && !/^https:\/\//.test(x.pay_link))) throw new Error("Link DOKU harus diawali https://");
       const notify_phone = normPhone(ph).p || null; if (ph.trim() && !notify_phone) throw new Error("No HP tidak valid");
       return saveBilling("topup", { packages, payment: payTxt.trim(), notify_phone });
     }, "Pengaturan top up disimpan")}>Simpan top up</button></section>);

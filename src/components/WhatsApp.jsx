@@ -68,7 +68,9 @@ function TopupForm({ billing, resume, toast, onClose }) {
     {step >= 2 && req && <div className="tp-sum"><div><span className="lbl">Invoice</span><b>#{req.number}</b></div><div><span className="lbl">Paket</span><b>{req.items?.[0]?.name}</b></div><div><span className="lbl">Total bayar</span><b className="tp-total">{rp(req.total)}</b></div>
       <a className="btn ghost sm" href={invoiceUrl(req.token)} target="_blank" rel="noopener">Lihat invoice</a></div>}
     {step === 2 && <>
-      <div className="tp-pay"><span className="lbl">Cara bayar</span><div style={{ whiteSpace: "pre-line" }}>{cfg.payment || "Instruksi pembayaran belum tersedia. Hubungi penyedia layanan."}</div></div>
+      {req.pay_link ? <div className="tp-pay"><span className="lbl">Cara bayar</span><a className="btn primary" href={req.pay_link} target="_blank" rel="noopener">Bayar via DOKU ↗</a>
+        <div className="meta">Setelah bayar, unggah bukti/tangkapan layar pembayaran di bawah supaya cepat diproses.</div></div>
+        : <div className="tp-pay"><span className="lbl">Cara bayar</span><div style={{ whiteSpace: "pre-line" }}>{cfg.payment || "Instruksi pembayaran belum tersedia. Hubungi penyedia layanan."}</div></div>}
       <div className="row"><label className="btn ghost" htmlFor="tp-proof">{file ? "Ganti foto" : "Pilih foto bukti transfer"}</label>
         <input id="tp-proof" type="file" accept="image/*" hidden onChange={e => setFile(e.target.files[0] || null)} />{file && <span className="meta">{file.name}</span>}</div></>}
     {step === 3 && <div className="banner ok">{req.status === "paid" ? "Top up selesai. Tekan Cek ulang di kartu WhatsApp untuk melihat kuota terbaru." : "Bukti transfer sudah diterima. Kuota & masa aktif WhatsApp bertambah setelah diproses (biasanya beberapa jam di jam kerja)."}

@@ -473,3 +473,5 @@ ol.stops li:first-child{border-top:0}
 .inv-stamp{bottom:96px;left:70px;right:auto}
 @media (max-width:620px){.inv-stamp{bottom:200px;left:24px;right:auto}}
 @media (max-width:620px){.inv-stamp{position:static;display:table;margin:22px 0 18px 12px}}
+.linkcheck{display:grid;gap:6px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px;background:var(--sunk)}
+.linkcheck .row{flex-wrap:wrap;gap:6px;align-items:center}.linkcheck .note{margin:0}
