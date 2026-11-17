@@ -46,7 +46,7 @@ function Detail({ o, ctx }) {
       <Timeline steps={steps} />
       <div className="row"><button className="btn primary sm" onClick={() => act.update(o)}>Update</button><button className="btn ghost sm" onClick={() => act.edit(o)}>Edit</button></div></section>
     <section className="panel"><h2>Informasi pesanan</h2><dl className="info">{info2.map(([k, v]) => [<dt key={k + "t"}>{k}</dt>, <dd key={k + "d"}>{v}</dd>])}</dl>
-      {o.proof && <div><div className="lbl">Foto bukti terima</div><a href={o.proof} target="_blank" rel="noopener"><img className="proof" src={o.proof} alt="Foto bukti terima" /></a></div>}
+      {o.proof && <div><div className="lbl">Foto bukti terima</div><a href={o.proof} target="_blank" rel="noopener">{o.archived ? "Buka arsip di Google Drive ↗" : <img className="proof" src={o.proof} alt="Foto bukti terima" />}</a></div>}
       <div><div className="lbl">Link lacak</div><div className="linkbox"><code>{link}</code><button className="btn ghost sm" onClick={() => copy(link, toast)}>Salin link</button></div>
       {grp && <div><div className="lbl">Link grup · semua kiriman dari {o.sender}</div><div className="linkbox"><code>{grp}</code><button className="btn ghost sm" onClick={() => copy(grp, toast)}>Salin link</button></div></div>}
         {!o.phone && <p className="note" style={{ marginTop: 6 }}>Penerima tidak punya No HP. Bagikan link ini manual ke nomor yang ada.</p>}</div>

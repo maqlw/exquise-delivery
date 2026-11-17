@@ -71,7 +71,7 @@ export function UpdateChoice({ order, onClose, onKirim, onSampai }) {
 
 export function SampaiForm({ order, onClose, onSave }) {
   const [name, setName] = useState(order.receivedBy || order.recipient), [rel, setRel] = useState(order.receivedRel || REL[0]);
-  const [file, setFile] = useState(null), [prev, setPrev] = useState(order.proof), [err, setErr] = useState(""), [busy, setBusy] = useState(false);
+  const [file, setFile] = useState(null), [prev, setPrev] = useState(order.archived ? null : order.proof), [err, setErr] = useState(""), [busy, setBusy] = useState(false);
   async function save() {
     if (!name.trim()) return setErr("Nama penerima barang wajib diisi.");
     setBusy(true); setErr("");

@@ -38,7 +38,7 @@ export default function TrackPublic({ token }) {
         : <div className="etabig" style={{ fontSize: 24 }}>Jadwal antar sedang disusun</div>}
       <Timeline steps={steps} />
       {d.via !== "internal" && d.via !== "pickup" && d.ext_link && <a className="btn primary big" href={d.ext_link} target="_blank" rel="noopener">Lacak driver di {VIA[d.via]}</a>}
-      {d.proof_path && <div><div className="lbl">Foto bukti terima</div><img className="proof" src={proofUrl(d.proof_path)} alt="Foto bukti terima" /></div>}</section>
+      {d.proof_path && <div><div className="lbl">Foto bukti terima</div>{d.proof_path.startsWith("drive:") ? <p className="note">Foto sudah diarsipkan (lebih dari 30 hari). Hubungi Exquise bila memerlukannya.</p> : <img className="proof" src={proofUrl(d.proof_path)} alt="Foto bukti terima" />}</div>}</section>
     <section className="panel fadeup" style={{ animationDelay: ".12s" }}><h2>Detail pengiriman</h2>
       <dl className="info">
         <dt>Pengirim</dt><dd>{d.sender || "–"}{d.sender_phone && <span className="mono-soft"> · {d.sender_phone}</span>}</dd>

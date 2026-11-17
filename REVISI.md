@@ -13,6 +13,7 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v016** | 17/11/2026 | Foto bukti dikompres maks 150 KB; foto > 30 hari otomatis dipindah ke Google Drive (folder tahun/bulan/hari) tiap 15 menit; link lacak lama menampilkan "foto sudah diarsipkan". |
 | **v015** | 14/11/2026 | Tagihan langganan: panel penyedia (/penyedia), invoice online + unduh PDF dengan cap LUNAS, menu Tagihan admin, masa tenggang & kunci layanan saat nonaktif, kirim invoice via WA/email (bisa dinyalakan/dimatikan). Top up WhatsApp sekarang lewat invoice. |
 | **v014** | 14/11/2026 | Form top up sendiri (paket & harga sendiri, bukti transfer, notifikasi WA ke penyedia jasa); nama penyedia disembunyikan jadi "WhatsApp Gateway". |
 | **v013** | 14/11/2026 | Fonnte: ganti token dari Pengaturan, sisa kuota & kedaluwarsa + Top up di Dashboard, sambung ulang via QR/kode, peringatan otomatis. |
