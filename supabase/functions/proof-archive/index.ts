@@ -2,7 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import { encodeBase64 } from "jsr:@std/encoding@1/base64";
 
 // Pindahkan foto bukti lama dari Supabase ke Google Drive (lewat Apps Script milik Exquise).
-// Dipanggil pg_cron tiap 15 menit dengan header x-cron-key. Secret: GDRIVE_URL (URL web app), GDRIVE_SECRET.
+// Dipanggil pg_cron tiap 5 menit jam 08.00-09.55 WIB dengan header x-cron-key. Secret: GDRIVE_URL (URL web app), GDRIVE_SECRET.
 // Urutan aman: simpan di Drive -> catat "drive:<id>" di pesanan -> baru hapus dari Supabase.
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 const clean = (s: string) => String(s || "").replace(/[^\p{L}\p{N} ._-]+/gu, "").trim().slice(0, 60);

@@ -1,4 +1,6 @@
--- v016: foto bukti > 30 hari (atau yang tertua bila bucket > 800 MB) dipindah ke Google Drive tiap 15 menit.
+-- v016: foto bukti > 30 hari (atau yang tertua bila bucket > 800 MB) dipindah ke Google Drive.
+-- Jadwal (diubah 17/11): tiap 5 menit jam 08.00-09.55 WIB (= 01-02 UTC), 25 foto per putaran = maks 600 foto/hari.
+-- select cron.alter_job((select jobid from cron.job where jobname = 'arsip-foto-drive'), schedule := '*/5 1-2 * * *');
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
 

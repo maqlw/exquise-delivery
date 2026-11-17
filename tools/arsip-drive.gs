@@ -33,7 +33,7 @@ function doPost(e) {
         const [y, m, d] = String(it.date).split('-');
         const day = sub_(sub_(sub_(root, y), m + '-' + BULAN[Number(m) - 1]), d);
         ids.push(day.createFile(Utilities.newBlob(Utilities.base64Decode(it.b64), 'image/jpeg', it.name)).getId());
-      } catch (x) { ids.push(null); } // satu foto gagal tidak membatalkan yang lain; dicoba lagi 15 menit kemudian
+      } catch (x) { ids.push(null); } // satu foto gagal tidak membatalkan yang lain; dicoba lagi di putaran berikutnya
     }
     return out({ ok: true, ids: ids });
   } finally { lock.releaseLock(); }
