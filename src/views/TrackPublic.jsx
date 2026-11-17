@@ -4,14 +4,14 @@ import { Timeline, Pill, Logo } from "../components/ui.jsx";
 import { sb, proofUrl } from "../lib/api.js";
 import { VIA, LABEL, hhmm } from "../lib/logic.js";
 
-// Halaman lacak untuk customer: tanpa login, hanya data pesanan ini.
-export default function TrackPublic({ token }) {
+// Halaman lacak untuk customer: tanpa login, hanya data pesanan ini. compact = versi ringkas di dalam daftar grup / halaman cek.
+export default function TrackPublic({ token, compact }) {
   const [d, setD] = useState(undefined);
   useEffect(() => {
     const get = () => sb.rpc("track", { p_token: token }).then(({ data }) => setD(data ?? null));
     get(); const t = setInterval(get, 20000); return () => clearInterval(t);
   }, [token]);
-  const shell = body => (<div style={{ minHeight: "100%", background: "var(--bg)" }}>
+  const shell = compact ? (body => body) : body => (<div style={{ minHeight: "100%", background: "var(--bg)" }}>
     <div className="pubhead"><Logo h={72} /></div>
     <div className="public">{body}</div></div>);
   if (d === undefined) return shell(<p className="sub"><span className="spin" /> Memuat pesanan…</p>);
@@ -25,8 +25,7 @@ export default function TrackPublic({ token }) {
     s === "gagal" ? ["Belum berhasil diantar", `${d.fail_reason || ""}. Tim Exquise akan menghubungi.`, "fail"] : ["Pesanan sampai", "", s === "sampai" ? "done" : ""],
   ];
   const pct = { draft: 10, siap: 36, jalan: 68, sampai: 100, gagal: 68 }[s];
-  return shell(<div className="stack trackpage">
-    <section className="panel fadeup"><div className="row between"><div><h1 style={{ fontSize: 22 }}>Pesanan untuk {d.recipient}</h1><p className="sub">{d.item} · dari {d.sender}</p></div><Pill s={s}>{LABEL[s]}</Pill></div>
+  const status = <>
       <div className={`trk ${s}`} aria-hidden="true">
         <div className="road"><i style={{ width: `${pct}%` }} /></div>
         <span className="van" style={{ left: `calc(${pct}% - 22px)` }}>{s === "sampai" ? <svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="11" fill="var(--ok)" /><path d="m7 12.5 3.2 3L17 9" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -38,7 +37,11 @@ export default function TrackPublic({ token }) {
         : <div className="etabig" style={{ fontSize: 24 }}>Jadwal antar sedang disusun</div>}
       <Timeline steps={steps} />
       {d.via !== "internal" && d.via !== "pickup" && d.ext_link && <a className="btn primary big" href={d.ext_link} target="_blank" rel="noopener">Lacak driver di {VIA[d.via]}</a>}
-      {d.proof_path && <div><div className="lbl">Foto bukti terima</div>{d.proof_path.startsWith("drive:") ? <p className="note">Foto sudah diarsipkan (lebih dari 30 hari). Hubungi Exquise bila memerlukannya.</p> : <img className="proof" src={proofUrl(d.proof_path)} alt="Foto bukti terima" />}</div>}</section>
+      {d.proof_path && <div><div className="lbl">Foto bukti terima</div>{d.proof_path.startsWith("drive:") ? <p className="note">Foto sudah diarsipkan (lebih dari 30 hari). Hubungi Exquise bila memerlukannya.</p> : <img className="proof" src={proofUrl(d.proof_path)} alt="Foto bukti terima" />}</div>}</>;
+  if (compact) return <div className="grp-detail">{status}<a className="btn ghost sm" href={`/l/${token}`} target="_blank" rel="noopener">Buka halaman lengkap ↗</a></div>;
+  return shell(<div className="stack trackpage">
+    <section className="panel fadeup"><div className="row between"><div><h1 style={{ fontSize: 22 }}>Pesanan untuk {d.recipient}</h1><p className="sub">{d.item} · dari {d.sender}</p></div><Pill s={s}>{LABEL[s]}</Pill></div>
+      {status}</section>
     <section className="panel fadeup" style={{ animationDelay: ".12s" }}><h2>Detail pengiriman</h2>
       <dl className="info">
         <dt>Pengirim</dt><dd>{d.sender || "–"}{d.sender_phone && <span className="mono-soft"> · {d.sender_phone}</span>}</dd>

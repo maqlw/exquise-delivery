@@ -13,6 +13,7 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v019** | 17/11/2026 | Halaman /cek tanpa login: pemesan isi No HP + nama → kiriman 30 hari terakhir per tanggal (salah 5x dikunci 15 menit). Daftar penerima grup bisa dibuka di tempat (status, perkiraan tiba, foto) tanpa pindah halaman. |
 | **v018** | 17/11/2026 | Link lacak lebih pendek: /l/ + 8 karakter (tanpa huruf mirip). Link lama /lacak/… tetap bisa dibuka. |
 | **v017** | 17/11/2026 | Link DOKU per paket top up (otomatis jadi tombol Bayar di invoice & form top up admin); kotak cek link DOKU di /penyedia (domain, format, link dobel, pengingat nominal); login penyedia pakai akun admin fahmi@exquiseindonesia.com. |
 | **v016** | 17/11/2026 | Foto bukti dikompres maks 150 KB; foto > 30 hari otomatis dipindah ke Google Drive (folder tahun/bulan/hari) tiap pagi jam 08.00-09.55 WIB; link lacak lama menampilkan "foto sudah diarsipkan". |

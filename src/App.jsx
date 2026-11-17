@@ -15,6 +15,7 @@ import Lacak from "./views/Lacak.jsx";
 import CourierScreen from "./views/CourierScreen.jsx";
 import TrackPublic from "./views/TrackPublic.jsx";
 import TrackGroup from "./views/TrackGroup.jsx";
+import CekPage from "./views/CekPage.jsx";
 import Report from "./views/Report.jsx";
 import Settings from "./views/Settings.jsx";
 import Billing, { ServiceBanner } from "./views/Billing.jsx";
@@ -58,6 +59,7 @@ export default function App() {
   if (invoice) return <InvoicePage token={invoice[1]} />;
   if (provider) return <ProviderApp />;
   if (grp) return <TrackGroup token={grp[1]} />;
+  if (/^\/cek\/?$/.test(location.pathname)) return <CekPage />;
   if (session === undefined || (session && !role)) return <div className="login"><span className="spin" aria-label="Memuat" /></div>;
   if (!session) return <Login />;
   if (role === "kurir") return <CourierScreen />;

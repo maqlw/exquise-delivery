@@ -475,3 +475,8 @@ ol.stops li:first-child{border-top:0}
 @media (max-width:620px){.inv-stamp{position:static;display:table;margin:22px 0 18px 12px}}
 .linkcheck{display:grid;gap:6px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px;background:var(--sunk)}
 .linkcheck .row{flex-wrap:wrap;gap:6px;align-items:center}.linkcheck .note{margin:0}
+.grp-list button{display:flex;width:100%;justify-content:space-between;align-items:flex-start;gap:12px;padding:12px 14px;border:0;border-radius:16px;background:var(--sunk);color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background .2s}
+.grp-list button:hover{background:#e3ebe5}.grp-list li.open button{border-radius:16px 16px 0 0;background:#e3ebe5}
+.grp-detail{display:grid;gap:12px;padding:14px;border:1px solid var(--line);border-top:0;border-radius:0 0 16px 16px;background:var(--card,#fff)}
+.grp-detail .btn{justify-self:start}
+.grp-detail .etabig{font-size:30px;line-height:1.1}
