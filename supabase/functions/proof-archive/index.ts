@@ -14,7 +14,12 @@ Deno.serve(async (req) => {
   if (!key?.value || req.headers.get("x-cron-key") !== key.value) return json({ error: "Tidak punya akses" }, 403);
   const url = Deno.env.get("GDRIVE_URL"), secret = Deno.env.get("GDRIVE_SECRET");
   if (!url || !secret) return json({ skipped: "GDRIVE_URL / GDRIVE_SECRET belum diatur" });
-  const { days = 30, limit = 25 } = await req.json().catch(() => ({}));
+  const { days = 30, limit = 25, test } = await req.json().catch(() => ({}));
+  if (test) { // kirim 1 gambar uji (piksel putih) tanpa menyentuh pesanan
+    const b64 = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==";
+    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ secret, items: [{ name: "TES-ARSIP.jpg", date: jakartaDate(null), b64 }] }) }).then(r => r.text()).catch(e => String(e));
+    return json({ test: r.slice(0, 300) });
+  }
 
   const { data: rows, error } = await db.rpc("proofs_to_archive", { p_limit: limit, p_days: days });
   if (error) return json({ error: error.message }, 500);
