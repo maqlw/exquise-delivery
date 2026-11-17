@@ -30,17 +30,24 @@ const URL_ = Deno.env.get("SUPABASE_URL")!, SERVICE = Deno.env.get("SUPABASE_SER
 // WhatsApp lewat fungsi notify yang sama (template dari Pengaturan), dipanggil sebagai server.
 const notify = (order_id: string, kind: string) => fetch(`${URL_}/functions/v1/notify`, { method: "POST", headers: { Authorization: `Bearer ${SERVICE}`, "Content-Type": "application/json" }, body: JSON.stringify({ order_id, kind }) }).then(r => r.json()).catch(e => ({ error: String(e) }));
 
-// Status order diambil ulang dari API Lalamove (bukan dari isi webhook), lalu diterapkan ke pesanan.
+// Status order diambil ulang dari API Lalamove (bukan dari isi webhook), lalu diterapkan ke semua pesanan di order itu.
 async function sync(db: any, o: any) {
-  const r = await llm("GET", `/v3/orders/${o.llm_order_id}`);
+  const { data: list } = await db.from("orders").select("*").eq("llm_order_id", o.llm_order_id);
+  const r = await llm("GET", `/v3/orders/${o.llm_order_id}`), wa: any = {};
+  for (const x of list?.length ? list : [o]) wa[x.code] = await syncOne(db, x, r);
+  return { r, wa };
+}
+async function syncOne(db: any, o: any, r: any) {
+  const multi = !!o.llm_stop_id, stop = multi ? (r.stops || []).find((s: any) => s.stopId === o.llm_stop_id) : (r.stops || []).at(-1);
+  const pod = stop?.POD || {}, done = multi ? ["DELIVERED", "SIGNED"].includes(pod.status) || (r.status === "COMPLETED" && pod.status !== "FAILED") : r.status === "COMPLETED";
   await db.from("orders").update({ llm_status: r.status, ext_link: r.shareLink || o.ext_link }).eq("id", o.id);
   const wa: any = {};
   if (["PICKED_UP", "COMPLETED"].includes(r.status)) {
     const { data } = await db.from("orders").update({ status: "jalan", sent_at: new Date().toISOString(), fail_reason: null }).eq("id", o.id).in("status", ["draft", "siap"]).select("id");
     if (data?.length && r.status === "PICKED_UP") wa.kirim = await notify(o.id, "kirim");
   }
-  if (r.status === "COMPLETED") {
-    const pod = (r.stops || []).at(-1)?.POD || {}; let proof = null;
+  if (done) {
+    let proof = null;
     if (pod.image) try {
       const img = await fetch(pod.image), b = await img.arrayBuffer(), type = img.headers.get("content-type") || "image/jpeg";
       if (img.ok && b.byteLength < 5e6 && /image\/(jpeg|png|webp)/.test(type)) {
@@ -51,7 +58,7 @@ async function sync(db: any, o: any) {
     const { data } = await db.from("orders").update({ status: "sampai", delivered_at: pod.deliveredAt || new Date().toISOString(), receiver_name: o.receiver_name || o.recipient, proof_path: proof || o.proof_path }).eq("id", o.id).eq("status", "jalan").select("id");
     if (data?.length) wa.sampai = await notify(o.id, "sampai");
   }
-  return { r, wa };
+  return wa;
 }
 
 Deno.serve(async (req) => {
@@ -62,7 +69,7 @@ Deno.serve(async (req) => {
   if (!payload.action) { // termasuk tes URL saat Lalamove mendaftarkan webhook
     const id = payload.data?.order?.orderId ?? payload.data?.orderId;
     if (id) {
-      const { data: o } = await db.from("orders").select("*").eq("llm_order_id", String(id)).maybeSingle();
+      const { data: o } = await db.from("orders").select("*").eq("llm_order_id", String(id)).limit(1).maybeSingle();
       if (o) { try { await sync(db, o); } catch (e) { console.error("sync gagal", id, e); } }
     }
     return json({ ok: true });
@@ -70,7 +77,7 @@ Deno.serve(async (req) => {
   const asUser = createClient(URL_, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } });
   const { data: isAdmin } = await asUser.rpc("is_admin");
   if (!isAdmin) return json({ error: "Hanya admin" }, 403);
-  const { action, order_id, service, quotation_id, sender_stop, recipient_stop } = payload;
+  const { action, order_id, service, quotation_id, sender_stop, recipient_stop, order_ids, stops } = payload;
   try {
     if (action === "register_webhook") return json(await llm("PATCH", "/v3/webhook", { url: `${URL_}/functions/v1/lalamove` }));
     if (action === "notify_check") return json(await notify("00000000-0000-0000-0000-000000000000", "kirim"));
@@ -78,6 +85,49 @@ Deno.serve(async (req) => {
       const cities = await llm("GET", "/v3/cities");
       const jkt = (cities || []).find((c: any) => /jakarta/i.test(c.name || c.locode || "")) || cities?.[0];
       return json({ city: jkt?.name, services: (jkt?.services || []).map((s: any) => ({ key: s.key, description: s.description })) });
+    }
+    if (action === "resolve_link") { // link pendek Google Maps -> link panjang berisi koordinat; hanya mengikuti host Google
+      let u = String(payload.url || "");
+      for (let i = 0; i < 4; i++) {
+        let h = ""; try { h = new URL(u).hostname; } catch { break; }
+        if (!/(^|\.)(goo\.gl|google\.com|google\.co\.id)$/.test(h)) break;
+        const loc = (await fetch(u, { redirect: "manual" })).headers.get("location"); if (!loc) break;
+        u = new URL(loc, u).toString();
+      }
+      return json({ url: u });
+    }
+    if (action === "quote_multi" || action === "book_multi") { // 1 driver ke banyak alamat dari outlet yang sama
+      const ids: string[] = Array.isArray(order_ids) ? order_ids : [];
+      if (ids.length < 2) return json({ error: "Pilih minimal 2 pesanan untuk digabung" }, 400);
+      const { data: os } = await db.from("orders").select("*, origins(*)").in("id", ids);
+      if (!os || os.length !== ids.length) return json({ error: "Ada pesanan yang tidak ditemukan" }, 404);
+      if (new Set(os.map((o: any) => o.origin_id)).size > 1) return json({ error: "Semua pesanan yang digabung harus dari outlet yang sama" }, 400);
+      const noPin = os.filter((o: any) => o.lat == null); if (noPin.length) return json({ error: `Titik peta belum ada: ${noPin.map((o: any) => o.code).join(", ")}` }, 400);
+      const busyOs = os.filter((o: any) => o.llm_order_id && !["CANCELED", "REJECTED", "EXPIRED"].includes(o.llm_status)); if (busyOs.length) return json({ error: `Sudah punya order Lalamove aktif: ${busyOs.map((o: any) => o.code).join(", ")}` }, 409);
+      const org = os[0].origins;
+      if (action === "quote_multi") {
+        const q = await llm("POST", "/v3/quotations", { serviceType: service || "MOTORCYCLE", language: "id_ID", isRouteOptimized: true,
+          stops: [{ coordinates: { lat: String(org.lat), lng: String(org.lng) }, address: org.name }, ...os.map((o: any) => ({ coordinates: { lat: String(o.lat), lng: String(o.lng) }, address: o.address }))] });
+        // urutan stop dari Lalamove (sudah dioptimalkan) dicocokkan balik ke pesanan lewat alamat + koordinat
+        const rest = [...os], near = (s: any, o: any) => Math.abs(+s.coordinates?.lat - o.lat) < 1e-5 && Math.abs(+s.coordinates?.lng - o.lng) < 1e-5;
+        const seq = (q.stops || []).slice(1).map((s: any) => {
+          let i = rest.findIndex((o: any) => o.address === s.address && near(s, o)); if (i < 0) i = rest.findIndex((o: any) => near(s, o));
+          const o = i >= 0 ? rest.splice(i, 1)[0] : null;
+          return o && { order_id: o.id, code: o.code, recipient: o.recipient, lat: o.lat, lng: o.lng, stop_id: s.stopId };
+        });
+        if (seq.length !== os.length || seq.some((x: any) => !x)) return json({ error: "Urutan dari Lalamove tidak bisa dicocokkan ke pesanan" }, 502);
+        return json({ quotation_id: q.quotationId, price: q.priceBreakdown?.total, expires_at: q.expiresAt, distance: q.distance, sender_stop: q.stops?.[0]?.stopId, stops: seq });
+      }
+      const by = Object.fromEntries(os.map((o: any) => [o.id, o])), senderPhone = e164(org.phone);
+      if (!senderPhone) return json({ error: `No HP ${org.short} belum diisi di Pengaturan → Lokasi asal` }, 400);
+      const list = (Array.isArray(stops) ? stops : []).filter((x: any) => by[x.order_id]);
+      if (list.length !== os.length) return json({ error: "Data urutan tidak lengkap, cek ongkir ulang" }, 400);
+      const recipients = list.map((x: any) => { const o = by[x.order_id]; return { stopId: x.stop_id, name: o.recipient_phone ? o.recipient : `${o.recipient} (via ${o.sender})`, phone: e164(o.recipient_phone || o.sender_phone), remarks: [o.code, o.item, o.notes].filter(Boolean).join(" · ").slice(0, 500) }; });
+      const noPhone = list.filter((_: any, i: number) => !recipients[i].phone); if (noPhone.length) return json({ error: `Tanpa No HP penerima/pemesan: ${noPhone.map((x: any) => by[x.order_id].code).join(", ")}` }, 400);
+      const r = await llm("POST", "/v3/orders", { quotationId: quotation_id, isPODEnabled: true, sender: { stopId: sender_stop, name: `Exquise ${org.short}`, phone: senderPhone }, recipients, metadata: { codes: os.map((o: any) => o.code).join(",").slice(0, 200) } });
+      const share = Math.round(Number(r.priceBreakdown?.total || 0) / os.length) || null; // ongkir dibagi rata per pesanan untuk laporan
+      for (const x of list) await db.from("orders").update({ via: "lalamove", llm_order_id: r.orderId, llm_stop_id: x.stop_id, llm_status: r.status, llm_price: share, llm_service: service || null, ext_link: r.shareLink || null }).eq("id", x.order_id);
+      return json({ order_id: r.orderId, status: r.status, price: r.priceBreakdown?.total, share_link: r.shareLink });
     }
     const { data: o } = await db.from("orders").select("*, origins(*)").eq("id", order_id).maybeSingle();
     if (!o) return json({ error: "Pesanan tidak ditemukan" }, 404);
@@ -101,7 +151,7 @@ Deno.serve(async (req) => {
         recipients: [{ stopId: recipient_stop, name: o.recipient_phone ? o.recipient : `${o.recipient} (via ${o.sender})`, phone: toPhone, remarks: [o.code, o.item, o.notes].filter(Boolean).join(" · ").slice(0, 500) }],
         metadata: { code: o.code },
       });
-      await db.from("orders").update({ via: "lalamove", llm_order_id: r.orderId, llm_status: r.status, llm_price: r.priceBreakdown?.total ?? null, llm_service: service || null, ext_link: r.shareLink || o.ext_link }).eq("id", o.id);
+      await db.from("orders").update({ via: "lalamove", llm_order_id: r.orderId, llm_stop_id: null, llm_status: r.status, llm_price: r.priceBreakdown?.total ?? null, llm_service: service || null, ext_link: r.shareLink || o.ext_link }).eq("id", o.id);
       return json({ order_id: r.orderId, status: r.status, share_link: r.shareLink, price: r.priceBreakdown?.total });
     }
     if (!o.llm_order_id) return json({ error: "Pesanan ini belum dipesan ke Lalamove" }, 400);
@@ -113,7 +163,7 @@ Deno.serve(async (req) => {
     }
     if (action === "cancel") {
       await llm("DELETE", `/v3/orders/${o.llm_order_id}`);
-      await db.from("orders").update({ llm_status: "CANCELED" }).eq("id", o.id);
+      await db.from("orders").update({ llm_status: "CANCELED" }).eq("llm_order_id", o.llm_order_id); // order gabungan: semua alamat ikut batal
       return json({ status: "CANCELED" });
     }
     return json({ error: "action tidak dikenal" }, 400);

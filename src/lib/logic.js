@@ -88,7 +88,20 @@ export function geocode(addr) {
 // Kelurahan terdekat dari titik peta (untuk laporan per kecamatan/kota).
 export function nearestWil(lat, lng) { let best = null, bd = Infinity; for (const r of WIL) { const d = (r.lat - lat) ** 2 + ((r.lng - lng) * 0.994) ** 2; if (d < bd) { bd = d; best = r; } } return best; }
 // Pilihan area manual: kelurahan (label dengan kode pos) atau nama area landmark.
+// Titik tepat dari peta / link Google Maps disimpan sebagai "pin:lat,lng" di kolom titik peta manual.
+export const pinLabel = (lat, lng) => `pin:${(+lat).toFixed(6)},${(+lng).toFixed(6)}`;
+// Baca koordinat dari "-6.2,106.8" atau link Google Maps (…@lat,lng / ?q=lat,lng / !3dlat!4dlng). Hanya area Indonesia.
+export function parseLatLng(text) {
+  let t = String(text || ""); try { t = decodeURIComponent(t); } catch { /* link dengan % rusak: pakai apa adanya */ }
+  const num = "(-?\\d{1,2}\\.\\d+)", lngN = "(\\d{2,3}\\.\\d+)";
+  const m = t.match(new RegExp(`!3d${num}!4d${lngN}`)) || t.match(new RegExp(`@${num},\\s*${lngN}`)) || t.match(new RegExp(`[?&](?:q|query|ll|destination)=${num},\\s*${lngN}`)) || t.match(new RegExp(`^\\s*${num}\\s*,\\s*${lngN}\\s*$`));
+  if (!m) return null;
+  const lat = +m[1], lng = +m[2];
+  return lat > -11.5 && lat < 6.5 && lng > 94 && lng < 141.5 ? { lat, lng } : null;
+}
 export function findArea(label) {
+  const pm = /^pin:(-?\d+\.\d+),(-?\d+\.\d+)$/.exec(label || "");
+  if (pm) { const lat = +pm[1], lng = +pm[2], w = nearestWil(lat, lng); return { name: w ? w.name : "Titik peta", lat, lng, how: "titik tepat di peta" }; }
   const w = WIL.find(r => r.label === label || r.name === label); if (w) return { ...w, how: "kelurahan dipilih admin" };
   const A = AREAS.find(x => x.name === label); return A && { name: A.name, lat: A.lat, lng: A.lng, how: "area dipilih admin" };
 }

@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Modal, Field, Pill } from "./ui.jsx";
 import { AreaPicker } from "./AreaPicker.jsx";
-import { VIA, REL, BATCH, hhmm, normPhone, recompute, status, fmtTime } from "../lib/logic.js";
+import { VIA, REL, BATCH, hhmm, normPhone, recompute, status, fmtTime, geocode, findArea, pinLabel, parseLatLng, km } from "../lib/logic.js";
+import PinMap from "./PinMap.jsx";
+import { lalamove } from "../lib/api.js";
 
 const toMin = t => t ? +t.slice(0, 2) * 60 + +t.slice(3, 5) : null;
 
@@ -12,8 +14,16 @@ export function OrderForm({ order, origins, defaults, onClose, onSave, history =
     address: v.address || "", area: v.areaManual || "", item: v.item || "", notes: v.notes || "", origin: v.origin || "ck",
     batch: v.batchReq ?? "", req: v.reqTime != null ? hhmm(v.reqTime).replace(".", ":") : "", via: v.via || "internal",
   });
-  const [err, setErr] = useState(""), [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(""), [busy, setBusy] = useState(false), [gm, setGm] = useState("");
   const set = k => e => setF({ ...f, [k]: e.target.value });
+  const g = f.via === "pickup" || /pick ?up/i.test(f.address) ? null : f.area ? findArea(f.area) : geocode(f.address), pt = g && g.lat != null ? g : null, og = origins[f.origin];
+  const setPin = (lat, lng) => setF(x => ({ ...x, area: pinLabel(lat, lng) }));
+  async function usePaste() { // link pendek maps.app.goo.gl dibuka dulu di server untuk mendapat koordinat
+    let c = parseLatLng(gm);
+    if (!c && /^https:\/\/(maps\.app\.goo\.gl|goo\.gl)\//.test(gm.trim())) c = parseLatLng((await lalamove("resolve_link", { url: gm.trim() }).catch(() => ({}))).url);
+    if (!c) return setErr("Link/koordinat tidak terbaca. Tempel link Google Maps (share location) atau format -6.26, 106.81.");
+    setErr(""); setPin(c.lat, c.lng); setGm("");
+  }
   async function save() {
     const e = [], ps = normPhone(f.psender), pr = normPhone(f.phone);
     [["ymd", "tanggal kirim"], ["sender", "pemesan"], ["recipient", "nama penerima"], ["address", "alamat"], ["item", "item"]].forEach(([k, t]) => { if (!f[k].trim()) e.push(t + " wajib diisi"); });
@@ -39,7 +49,12 @@ export function OrderForm({ order, origins, defaults, onClose, onSave, history =
         <Field id="f-recipient" label="Nama penerima *"><input id="f-recipient" value={f.recipient} onChange={set("recipient")} autoComplete="off" /></Field>
         <Field id="f-phone" label="No HP penerima"><input id="f-phone" inputMode="tel" value={f.phone} onChange={set("phone")} placeholder="08…" /></Field>
         <Field id="f-address" full label={<>Alamat *{order && <span className="hint"> perubahan alamat dicatat di riwayat</span>}</>}><textarea id="f-address" rows="3" value={f.address} onChange={set("address")} /></Field>
-        <Field id="f-area" label={<>Titik peta <span className="hint">{order?.area && !f.area ? `otomatis: ${order.area}` : "kosongkan = otomatis dari alamat"}</span></>}><AreaPicker id="f-area" value={f.area} onPick={v => setF(x => ({ ...x, area: v }))} /></Field>
+        <Field id="f-area" label={<>Titik peta <span className="hint">{order?.area && !f.area ? `otomatis: ${order.area}` : "kosongkan = otomatis dari alamat"}</span></>}><AreaPicker key={f.area.startsWith("pin:") ? "pin" : "area"} id="f-area" value={f.area.startsWith("pin:") ? "" : f.area} onPick={v => setF(x => ({ ...x, area: v }))} /></Field>
+        <div className="fld full"><span className="flabel">Lokasi di peta <span className="hint">{!pt ? "alamat belum terbaca, tandai di peta" : pt.how === "titik tepat di peta" ? "✓ titik tepat sudah ditandai" : `masih perkiraan dari ${pt.how}`}</span></span>
+          <div className="row"><input aria-label="Link Google Maps atau koordinat" placeholder="Tempel link Google Maps / share location, atau -6.26, 106.81" value={gm} onChange={e => setGm(e.target.value)} style={{ flex: 1, minWidth: 160 }} />
+            <button type="button" className="btn ghost sm" disabled={!gm.trim()} onClick={usePaste}>Pakai titik</button></div>
+          <PinMap origin={og} stops={pt ? [{ lat: pt.lat, lng: pt.lng, title: f.recipient || "Tujuan" }] : []} onPick={setPin} label="Peta lokasi tujuan, geser titik untuk memperbaiki" />
+          <p className="note">{pt && pt.how !== "titik tepat di peta" ? "Titik masih perkiraan dari alamat. " : ""}Geser titik merah atau ketuk peta di lokasi persis{f.via === "lalamove" ? " (dipakai untuk ongkir & arah driver Lalamove)" : ""}.{pt && og?.lat != null ? ` Perkiraan ± ${km(og, pt).toFixed(1)} km dari ${og.short}.` : ""}</p></div>
         <Field id="f-item" label="Item *"><input id="f-item" value={f.item} onChange={set("item")} /></Field>
         <Field id="f-notes" full label="Wording / catatan"><input id="f-notes" value={f.notes} onChange={set("notes")} /></Field>
         <Field id="f-origin" label="Lokasi asal"><select id="f-origin" value={f.origin} onChange={set("origin")}>{Object.values(origins).map(x => <option key={x.id} value={x.id}>{x.short}</option>)}</select></Field>

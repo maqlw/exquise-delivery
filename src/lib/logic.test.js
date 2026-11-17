@@ -76,3 +76,16 @@ test("tanggal kedaluwarsa Fonnte", () => {
   assert.equal(parseExpired("tidak jelas"), null);
   assert.equal(daysLeft(parseExpired("15 November 2026"), new Date(2026, 10, 13, 22)), 2);
 });
+
+test("parseLatLng: koordinat & link Google Maps, tolak di luar Indonesia", async () => {
+  const { parseLatLng, findArea, pinLabel } = await import("./logic.js");
+  assert.deepEqual(parseLatLng("-6.2615, 106.8106"), { lat: -6.2615, lng: 106.8106 });
+  assert.deepEqual(parseLatLng("https://www.google.com/maps/place/X/@-6.2615123,106.8106456,17z/data=!3d-6.2611!4d106.8102"), { lat: -6.2611, lng: 106.8102 });
+  assert.deepEqual(parseLatLng("https://maps.google.com/?q=-6.30001,106.65002"), { lat: -6.30001, lng: 106.65002 });
+  assert.deepEqual(parseLatLng("https://www.google.com/maps/search/?api=1&query=-6.2%2C106.8"), { lat: -6.2, lng: 106.8 });
+  assert.equal(parseLatLng("40.7128, -74.0060"), null);
+  assert.equal(parseLatLng("Jl. Kemang Raya 8"), null);
+  assert.equal(parseLatLng("%E0%A4%A"), null);
+  const g = findArea(pinLabel(-6.2615, 106.8106));
+  assert.equal(g.lat, -6.2615); assert.equal(g.how, "titik tepat di peta"); assert.ok(g.name.length > 3);
+});

@@ -1,11 +1,12 @@
 import { useState } from "react";
 import MapSVG from "../components/MapSVG.jsx";
+import PinMap from "../components/PinMap.jsx";
 import { Pill, Empty, StopInfo } from "../components/ui.jsx";
 import { BATCH, VIA, status, hhmm, fmtKm, dmy, returnLabel } from "../lib/logic.js";
 import { updateOrder, sendRoutes, sendExtra, lalamove } from "../lib/api.js";
 
 export default function Dispatch({ orders, origins, couriers, P, date, ui, setUi, reload, toast, routes, positions, act, locked }) {
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(false), [sel, setSel] = useState(new Set());
   if (!orders.length) return <Empty title="Belum ada pengiriman" desc="Upload file Excel atau tambah pesanan manual dulu."><a className="btn primary" href="#upload">Ke Data pengiriman</a></Empty>;
   const oid = ui.origin, b = ui.batch, B = P[oid][b], org = origins[oid], list = couriers.filter(c => c.origin_id === oid && c.active);
   const rs = list.map(c => B.routes[c.id]), totalKm = rs.reduce((a, r) => a + r.km, 0), late = rs.reduce((a, r) => a + r.late, 0);
@@ -64,8 +65,10 @@ export default function Dispatch({ orders, origins, couriers, P, date, ui, setUi
         <button className="btn primary big" disabled={busy || !list.length || locked} onClick={sendAdd}>{busy ? "Mengirim…" : `Kirim ${B.extra.count} alamat tambahan ke kurir`}</button></section>}
       <div className="row">{B.sent ? <><div className="banner ok" style={{ flex: 1 }}>Rute Batch {b} sudah dikirim ke kurir. Status berubah dari aksi kurir.</div><a className="btn ghost" href="#lacak">Pantau di Lacak →</a></>
         : <button className="btn primary big" onClick={send} disabled={!B.count || busy || !list.length || locked}>{busy ? "Mengirim…" : `Kirim rute Batch ${b} ke kurir ${org.short}`}</button>}</div>
-      <section className="panel"><h2>Pihak ketiga · {ext.length}</h2><p className="note">Pesan lewat aplikasinya seperti biasa, lalu tempel link tracking supaya muncul di halaman lacak customer.</p>
-        {ext.length ? <ol className="stops">{ext.map(o => <ExtRow key={o.id} o={o} save={save} toast={toast} reload={reload} act={act} />)}</ol> : <p className="note">Belum ada.</p>}</section>
+      <section className="panel"><h2>Pihak ketiga · {ext.length}</h2><p className="note">Lalamove: pesan langsung dari sini supaya status, foto bukti & WhatsApp otomatis. Centang 2 pesanan Lalamove atau lebih dari outlet yang sama untuk <b>1 driver banyak alamat</b>. GoSend/Grab: pesan di aplikasinya lalu tempel link tracking.</p>
+        {sel.size >= 2 && <LalamoveMulti list={ext.filter(o => sel.has(o.id))} origins={origins} toast={toast} reload={reload} done={() => setSel(new Set())} />}
+        {ext.length ? <ol className="stops">{ext.map(o => <ExtRow key={o.id} o={o} save={save} toast={toast} reload={reload} act={act} org={origins[o.origin]}
+          checked={sel.has(o.id)} onCheck={canMulti(o) ? () => { const n = new Set(sel); n.has(o.id) ? n.delete(o.id) : n.add(o.id); setSel(n); } : null} />)}</ol> : <p className="note">Belum ada.</p>}</section>
       <section className="panel"><h2>Pick up · {pick.length}</h2>{pick.length ? <ol className="stops">{pick.map(o => <li key={o.id}><span className="num" style={{ background: "var(--muted)" }}>P</span><div><div className="addr">{o.recipient}</div><div className="meta">{o.address} · {o.item}</div></div><span /></li>)}</ol> : <p className="note">Tidak ada.</p>}</section>
     </div>
       <section className="panel sticky-map"><h2>Peta Batch {b} · {org.short}</h2>
@@ -75,11 +78,12 @@ export default function Dispatch({ orders, origins, couriers, P, date, ui, setUi
   </>);
 }
 
+const canMulti = o => o.via === "lalamove" && !["jalan", "sampai", "gagal"].includes(o.ship) && !(o.llm && !["CANCELED", "REJECTED", "EXPIRED"].includes(o.llm.status));
 const LLM_STATUS = { ASSIGNING_DRIVER: "Mencari driver", ON_GOING: "Driver menuju outlet", PICKED_UP: "Sedang diantar", COMPLETED: "Selesai", CANCELED: "Dibatalkan", REJECTED: "Ditolak", EXPIRED: "Kedaluwarsa" };
 const VEH = { MOTORCYCLE: "Motor", SEDAN: "Mobil sedan", MPV: "Mobil MPV", VAN: "Van" }; // jenis lain di Jakarta truk/bak, tidak cocok untuk kue
 const rp = n => "Rp " + Number(n || 0).toLocaleString("id-ID");
 // Pesan Lalamove langsung dari sini: cek ongkir -> pesan -> cek status / batalkan.
-function LalamoveBox({ o, toast, reload }) {
+function LalamoveBox({ o, toast, reload, org, act }) {
   const [svc, setSvc] = useState(null), [type, setType] = useState("MOTORCYCLE"), [q, setQ] = useState(null), [busy, setBusy] = useState(""), [st, setSt] = useState(null);
   const run = async (label, fn) => { setBusy(label); try { await fn(); } catch (e) { toast(e.message); } setBusy(""); };
   const live = o.llm && !["CANCELED", "REJECTED", "EXPIRED"].includes(o.llm.status);
@@ -95,15 +99,38 @@ function LalamoveBox({ o, toast, reload }) {
         {(svc?.filter(s => VEH[s.key]).length ? svc.filter(s => VEH[s.key]) : [{ key: "MOTORCYCLE" }]).map(s => <option key={s.key} value={s.key}>{VEH[s.key]}</option>)}</select>
       <button className="btn ghost sm" disabled={!!busy || o.lat == null} onClick={() => run("q", async () => setQ(await lalamove("quote", { order_id: o.id, service: type })))}>{busy === "q" ? "Menghitung…" : "Cek ongkir"}</button>
       {q && <button className="btn primary sm" disabled={!!busy} onClick={() => run("b", async () => { const r = await lalamove("book", { order_id: o.id, service: type, quotation_id: q.quotation_id, sender_stop: q.sender_stop, recipient_stop: q.recipient_stop }); toast(`Lalamove dipesan · ${LLM_STATUS[r.status] || r.status}`); setQ(null); reload(); })}>{busy === "b" ? "Memesan…" : `Pesan ${rp(q.price)}`}</button>}</div>
-    {o.lat == null && <div className="meta">Pilih kelurahan alamat ini dulu supaya ongkir bisa dihitung.</div>}
+    {o.lat == null ? <div className="meta">Tandai lokasinya di peta dulu (Edit pesanan) supaya ongkir bisa dihitung.</div>
+      : <details className="llm-map"><summary>Cek titik di peta {/^pin:/.test(o.areaManual || "") ? "· titik tepat" : "· masih perkiraan dari alamat"}</summary>
+        <PinMap origin={org} stops={[{ lat: o.lat, lng: o.lng, title: o.recipient }]} height={220} label={`Peta ${o.recipient}`} />
+        <button className="btn ghost sm" onClick={() => act.edit(o)}>Ubah titik</button></details>}
     {q && <div className="meta">Ongkir {rp(q.price)}{q.distance?.value ? ` · ${(q.distance.value / 1000).toFixed(1)} km` : ""} · harga berlaku sampai {new Date(q.expires_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</div>}</div>);
 }
 
-function ExtRow({ o, save, toast, reload, act }) {
+function ExtRow({ o, save, toast, reload, act, org, checked, onCheck }) {
   const [v, setV] = useState(o.link);
-  return (<li><span className="num" style={{ background: "var(--ext)" }}>↗</span><div><div className="addr">{o.recipient}</div><div className="meta">{o.address}</div>
+  return (<li>{onCheck ? <input type="checkbox" className="ext-chk" checked={checked} onChange={onCheck} aria-label={`Gabungkan ${o.recipient} ke 1 driver Lalamove`} /> : <span className="num" style={{ background: "var(--ext)" }}>↗</span>}<div><div className="addr">{o.recipient}</div><div className="meta">{o.address}</div>
     <div className="row" style={{ marginTop: 6 }}><Pill s="pihak3">{VIA[o.via]}</Pill><input type="url" aria-label={`Link tracking ${o.code}`} placeholder={`Tempel link tracking ${VIA[o.via]}`} value={v} onChange={e => setV(e.target.value)} style={{ flex: 1, minWidth: 140 }} />
       <button className="btn ghost" onClick={() => v && !/^https:\/\/\S+$/.test(v.trim()) ? toast("Link harus diawali https://") : save(o, { ext_link: v.trim() || null }, v.trim() ? "Link tracking disimpan" : "Link dihapus")}>Simpan</button></div>
     {!o.llm && !["jalan", "sampai", "gagal"].includes(o.ship) && <button className="btn ghost sm" style={{ marginTop: 6 }} onClick={() => act.edit(o)}>Edit pesanan</button>}
-    {o.via === "lalamove" && <LalamoveBox o={o} toast={toast} reload={reload} />}</div><span /></li>);
+    {o.via === "lalamove" && <LalamoveBox o={o} toast={toast} reload={reload} org={org} act={act} />}</div><span /></li>);
+}
+
+// 1 driver Lalamove ke banyak alamat: Lalamove menyusun urutan searah (isRouteOptimized), satu ongkir total.
+function LalamoveMulti({ list, origins, toast, reload, done }) {
+  const [type, setType] = useState("MOTORCYCLE"), [q, setQ] = useState(null), [busy, setBusy] = useState("");
+  const run = async (label, fn) => { setBusy(label); try { await fn(); } catch (e) { toast(e.message); } setBusy(""); };
+  const ids = list.map(o => o.id), org = origins[list[0].origin], mixed = new Set(list.map(o => o.origin)).size > 1;
+  const km = q?.distance?.value ? q.distance.value / 1000 : null, eta = km != null ? Math.round(km / 22 * 60 + list.length * 8) : null; // shortcut: kecepatan rata-rata 22 km/jam + 8 menit per alamat, ganti ke data Lalamove kalau tersedia
+  const by = Object.fromEntries(list.map(o => [o.id, o]));
+  return (<div className="llm llm-multi"><div><b>1 driver Lalamove · {list.length} alamat</b>{mixed ? " · beda outlet, tidak bisa digabung" : ` · dari ${org.short}`}</div>
+    <div className="row"><select aria-label="Jenis kendaraan gabungan" value={type} onChange={e => { setType(e.target.value); setQ(null); }}>{Object.entries(VEH).map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select>
+      <button className="btn ghost sm" disabled={!!busy || mixed} onClick={() => run("q", async () => setQ(await lalamove("quote_multi", { order_ids: ids, service: type })))}>{busy === "q" ? "Menghitung…" : "Cek ongkir & rute"}</button>
+      {q && <button className="btn primary sm" disabled={!!busy} onClick={() => run("b", async () => { const r = await lalamove("book_multi", { order_ids: ids, service: type, quotation_id: q.quotation_id, sender_stop: q.sender_stop, stops: q.stops }); toast(`Lalamove dipesan · ${list.length} alamat · ${LLM_STATUS[r.status] || r.status}`); setQ(null); done(); reload(); })}>{busy === "b" ? "Memesan…" : `Pesan 1 driver ${rp(q.price)}`}</button>}
+      <button className="btn ghost sm" onClick={done}>Batal pilih</button></div>
+    {q && <>
+      <div className="llm-sum"><div><span className="lbl">Total ongkir</span><b>{rp(q.price)}</b></div><div><span className="lbl">Jarak rute</span><b>{km != null ? `${km.toFixed(1)} km` : "-"}</b></div>
+        <div><span className="lbl">Perkiraan selesai</span><b>{eta != null ? `± ${eta} menit` : "-"}</b></div><div><span className="lbl">Rata-rata / alamat</span><b>{rp(Math.round(q.price / list.length))}</b></div></div>
+      <ol className="llm-seq">{q.stops.map((s, i) => <li key={s.stop_id}><b>{i + 1}.</b> {s.recipient} <span className="meta">· {by[s.order_id]?.address}</span></li>)}</ol>
+      <PinMap origin={org} stops={q.stops.map(s => ({ lat: s.lat, lng: s.lng, title: s.recipient }))} height={260} label="Peta urutan antar Lalamove" />
+      <p className="note">Urutan disusun Lalamove supaya searah. Harga berlaku sampai {new Date(q.expires_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}. Garis di peta = urutan, bukan jalur jalan persis.</p></>}</div>);
 }

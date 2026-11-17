@@ -480,3 +480,10 @@ ol.stops li:first-child{border-top:0}
 .grp-detail{display:grid;gap:12px;padding:14px;border:1px solid var(--line);border-top:0;border-radius:0 0 16px 16px;background:var(--card,#fff)}
 .grp-detail .btn{justify-self:start}
 .grp-detail .etabig{font-size:30px;line-height:1.1}
+.pinmap{width:100%;border-radius:14px;overflow:hidden;border:1px solid var(--line);margin-top:8px;z-index:0}
+.pin-ic span{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;color:#fff;font:700 11px/1 var(--f-mono,monospace);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.ext-chk{width:22px;height:22px;margin:4px 6px 0 2px;accent-color:var(--accent)}
+.llm-map summary{cursor:pointer;font-size:13px;color:var(--muted);margin:6px 0}.llm-map .btn{margin-top:6px}
+.llm-multi{border:2px solid var(--accent);margin-bottom:12px}
+.llm-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:8px 0}.llm-sum div{background:var(--sunk);border-radius:10px;padding:8px 10px;display:grid}.llm-sum b{font-size:16px}
+.llm-seq{margin:6px 0 0;padding:0;list-style:none;display:grid;gap:4px;font-size:14px}
