@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
   const tpl = (k: string) => (st?.value?.[k] || DEFAULT[k]).trim();
   const vars: Record<string, string> = {
     pemesan: o.sender || "-", penerima: o.recipient || "-", diterima_oleh: o.receiver_name ?? o.recipient ?? "-",
-    alasan: o.fail_reason ?? "-", item: o.item || "", kode: o.code || "", alamat: o.address || "-", link: `${SITE}/lacak/${o.token}`,
+    alasan: o.fail_reason ?? "-", item: o.item || "", kode: o.code || "", alamat: o.address || "-", link: `${SITE}/l/${o.token}`,
   };
   const fill = (k: string) => tpl(k).replace(/\{(\w+)\}/g, (m, v) => vars[v] ?? m);
 

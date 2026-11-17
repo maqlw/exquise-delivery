@@ -4,7 +4,7 @@ import { compressImage } from "./image.js";
 
 export const SITE = import.meta.env.VITE_SITE_URL;
 export const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_KEY);
-export const trackUrl = token => `${SITE}/lacak/${token}`;
+export const trackUrl = token => `${SITE}/l/${token}`;
 export const isArchived = path => !!path && path.startsWith("drive:");
 export const proofUrl = path => !path ? null : isArchived(path) ? `https://drive.google.com/file/d/${path.slice(6)}/view` : sb.storage.from("proofs").getPublicUrl(path).data.publicUrl;
 const must = ({ data, error }) => { if (error) throw new Error(error.message); return data; };

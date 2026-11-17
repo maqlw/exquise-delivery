@@ -13,6 +13,7 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v018** | 17/11/2026 | Link lacak lebih pendek: /l/ + 8 karakter (tanpa huruf mirip). Link lama /lacak/… tetap bisa dibuka. |
 | **v017** | 17/11/2026 | Link DOKU per paket top up (otomatis jadi tombol Bayar di invoice & form top up admin); kotak cek link DOKU di /penyedia (domain, format, link dobel, pengingat nominal); login penyedia pakai akun admin fahmi@exquiseindonesia.com. |
 | **v016** | 17/11/2026 | Foto bukti dikompres maks 150 KB; foto > 30 hari otomatis dipindah ke Google Drive (folder tahun/bulan/hari) tiap pagi jam 08.00-09.55 WIB; link lacak lama menampilkan "foto sudah diarsipkan". |
 | **v015** | 14/11/2026 | Tagihan langganan: panel penyedia (/penyedia), invoice online + unduh PDF dengan cap LUNAS, menu Tagihan admin, masa tenggang & kunci layanan saat nonaktif, kirim invoice via WA/email (bisa dinyalakan/dimatikan). Top up WhatsApp sekarang lewat invoice. |

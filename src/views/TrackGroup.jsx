@@ -23,7 +23,7 @@ export default function TrackGroup({ token }) {
       {pct === 100 && <div className="banner ok">Semua kiriman sudah selesai diantar.</div>}</section>
     <section className="panel fadeup" style={{ animationDelay: ".1s" }}><h2>Daftar penerima</h2>
       {list.length > 5 && <Search value={q} onChange={setQ} placeholder="Cari nama penerima atau alamat" label="Cari penerima" count={vis.length} />}
-      <ol className="grp-list">{vis.map(o => <li key={o.token}><a href={`/lacak/${o.token}`}>
+      <ol className="grp-list">{vis.map(o => <li key={o.token}><a href={`/l/${o.token}`}>
         <div style={{ minWidth: 0 }}><div className="addr">{o.recipient}{o.recipient_phone && <span className="mono-soft"> · {o.recipient_phone}</span>}</div><div className="meta">{o.item}</div><div className="meta">{o.address}</div>
           <div className="meta">{o.status === "sampai" ? `Diterima ${o.receiver_name || ""} · ${fmtTime(o.delivered_at)}` : o.status === "gagal" ? `Belum berhasil: ${o.fail_reason || "-"}` : o.status === "jalan" ? `Diantar sejak ${fmtTime(o.sent_at)}` : o.via !== "internal" ? `Lewat ${VIA[o.via]}` : "Menunggu diantar"}</div></div>
         <Pill s={st(o)}>{st(o) === "siap" ? "Menunggu" : LABEL[st(o)]}</Pill></a></li>)}</ol>

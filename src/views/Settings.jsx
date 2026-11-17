@@ -14,7 +14,7 @@ const TPL = [
   ["grup_mulai", "Grup mulai → pemesan", "Pesanan grup: 1x saat kiriman pertama berangkat. Pakai {jumlah} dan {link} (link grup)."],
   ["grup_selesai", "Grup selesai → pemesan", "Pesanan grup: 1x saat semua kiriman sampai/gagal. Pakai {jumlah}, {sampai}, {gagal}, {link}."],
 ];
-const VARS = { pemesan: "Ibu Sari", penerima: "Pak Budi", diterima_oleh: "Satpam Andi", alasan: "Penerima tidak ada", item: "Fraisier D18", kode: "GD2026110001", jumlah: "30", sampai: "28", gagal: "2", alamat: "Jl. Kemang Raya No. 8, Bangka, Jakarta Selatan 12730", link: "https://delivery.exquisepatisserie.space/lacak/contoh" };
+const VARS = { pemesan: "Ibu Sari", penerima: "Pak Budi", diterima_oleh: "Satpam Andi", alasan: "Penerima tidak ada", item: "Fraisier D18", kode: "GD2026110001", jumlah: "30", sampai: "28", gagal: "2", alamat: "Jl. Kemang Raya No. 8, Bangka, Jakarta Selatan 12730", link: "https://delivery.exquisepatisserie.space/l/k7Qm2xPa" };
 const fill = t => t.replace(/\{(\w+)\}/g, (m, v) => VARS[v] ?? m);
 
 export default function Settings({ origins, settings, orders, reload, toast, wa, setWa, reloadWa }) {

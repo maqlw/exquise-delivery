@@ -12,10 +12,10 @@ function rpc($fn, $body, $key) {
 }
 $e = fn($s) => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 $title = null; $desc = null;
-if (strlen($t) >= 12 && is_array($d = rpc('track', ['p_token' => $t], $key)) && !empty($d['recipient'])) {
+if (strlen($t) >= 8 && is_array($d = rpc('track', ['p_token' => $t], $key)) && !empty($d['recipient'])) {
   $title = $e('Pesanan untuk ' . $d['recipient'] . ' · Exquise Patisserie');
   $desc = $e(trim(($d['item'] ?? '') . (!empty($d['sender']) ? ' dari ' . $d['sender'] : '')) . '. Klik untuk melihat status pengiriman dan perkiraan tiba.');
-} elseif (strlen($g) >= 12 && is_array($d = rpc('track_group', ['p_token' => $g], $key))) {
+} elseif (strlen($g) >= 8 && is_array($d = rpc('track_group', ['p_token' => $g], $key))) {
   $title = $e(count($d['orders'] ?? []) . ' kiriman dari ' . ($d['sender'] ?? 'kamu') . ' · Exquise Patisserie');
   $desc = $e('Pantau status semua penerima dalam satu halaman.');
 }

@@ -36,7 +36,7 @@ const useHash = () => { const [h, setH] = useState(location.hash.slice(1)); useE
 
 
 export default function App() {
-  const track = location.pathname.match(/^\/lacak\/([A-Za-z0-9]+)/), grp = location.pathname.match(/^\/g\/([A-Za-z0-9]+)/);
+  const track = location.pathname.match(/^\/(?:lacak|l)\/([A-Za-z0-9]+)/), grp = location.pathname.match(/^\/g\/([A-Za-z0-9]+)/);
   const invoice = location.pathname.match(/^\/invoice\/([A-Za-z0-9]+)/), provider = /^\/penyedia\/?$/.test(location.pathname);
   const [session, setSession] = useState(undefined), [role, setRole] = useState(null);
   useEffect(() => {
