@@ -68,6 +68,8 @@ export async function sendRoutes(ymd, oid, batch, routes) {
   }
 }
 // Tambahan setelah batch dikirim: alamat disambung ke rute kurir yang sudah ada (1 rute per kurir per batch), rute dibuka lagi kalau sudah selesai.
+// Kurir berhalangan setelah rute dikirim: pindahkan pesanan yang belum selesai ke rute kurir lain (batch sama).
+export const reassignOrders = async (ids, courierId) => must(await sb.rpc("reassign_orders", { p_orders: ids, p_courier: courierId }));
 export async function sendExtra(ymd, oid, batch, routes) {
   for (const [courierId, r] of Object.entries(routes)) {
     if (!r.seq.length) continue;

@@ -13,6 +13,7 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v026** | 18/11/2026 | Kurir berhalangan: pindahkan alamat (satu-satu atau semua sisa) ke kurir lain setelah rute dikirim. Perbaikan: pesanan yang diganti ke pihak ketiga otomatis keluar dari rute kurir. HP kurir memperbarui rute tiap 30 detik. |
 | **v025** | 18/11/2026 | Pengaturan → Jasa kirim pihak ketiga: tambah / ubah nama / hapus jasa kirim (Borzo sudah ditambahkan), ikut terbaca dari kolom kiriman Excel; database tidak lagi membatasi 5 jasa kirim. |
 | **v024** | 18/11/2026 | Lalamove: opsi tambahan per kendaraan (tas thermal, pulang pergi, waktu tunggu, antar sampai pintu, tol dalam kota) ikut ongkir; catatan untuk driver (mis. lewat pintu belakang); tip prioritas saat masih mencari driver. Data uji dibersihkan untuk live. |
 | **v023** | 18/11/2026 | Akun staf di Pengaturan → Akun: 3 level (Pemilik / Admin / CS lihat saja), tambah akun dengan password sementara (wajib ganti saat login pertama), ubah level, reset password, nonaktifkan. Token WhatsApp hanya Pemilik. Batasan dikunci di database. |

@@ -23,9 +23,9 @@ export default function CourierScreen() {
     setRoutes(list); setSel(s => list.some(r => r.id === s) ? s : (list.find(r => !r.finished_at) || list[0])?.id || null);
   }, []);
   useEffect(() => { load(); }, [load]);
-  // Saat menunggu izin pulang, cek keputusan admin tiap 20 detik.
+  // Rute diperbarui berkala: alamat yang dipindah admin ke kurir lain / pihak ketiga ikut hilang atau muncul. Saat menunggu izin pulang lebih sering.
   const waiting = routes?.some(r => r.return_status === "menunggu" && !r.finished_at);
-  useEffect(() => { if (!waiting) return; const t = setInterval(load, 20000); return () => clearInterval(t); }, [waiting, load]);
+  useEffect(() => { const t = setInterval(load, waiting ? 20000 : 30000); return () => clearInterval(t); }, [waiting, load]);
   const [homeForm, setHomeForm] = useState(false), [note, setNote] = useState(""), prevIdx = useRef(0), [dir, setDir] = useState("swap-r");
 
   // GPS dikirim selama ada rute yang sedang berjalan dan halaman ini terbuka.
