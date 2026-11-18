@@ -13,6 +13,7 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v021** | 18/11/2026 | Halaman lacak customer pakai peta jalan OpenStreetMap (gratis): titik tujuan + posisi kurir saat diantar, keterangan untuk kiriman Lalamove/pihak ketiga. |
 | **v020** | 17/11/2026 | Peta jalan sungguhan (OpenStreetMap): titik tujuan bisa digeser / ditempel link Google Maps di form pesanan; cek titik di kotak Lalamove; Lalamove 1 driver banyak alamat (urutan searah dari Lalamove, total ongkir, jarak, perkiraan waktu, peta urutan). |
 | **v019** | 17/11/2026 | Halaman /cek tanpa login: pemesan isi No HP + nama → kiriman 30 hari terakhir per tanggal (salah 5x dikunci 15 menit). Daftar penerima grup bisa dibuka di tempat (status, perkiraan tiba, foto) tanpa pindah halaman. |
 | **v018** | 17/11/2026 | Link lacak lebih pendek: /l/ + 8 karakter (tanpa huruf mirip). Link lama /lacak/… tetap bisa dibuka. |

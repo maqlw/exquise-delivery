@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import MapSVG from "../components/MapSVG.jsx";
+import PinMap from "../components/PinMap.jsx";
 import { Timeline, Pill, Logo } from "../components/ui.jsx";
 import { sb, proofUrl } from "../lib/api.js";
 import { VIA, LABEL, hhmm } from "../lib/logic.js";
@@ -50,9 +50,9 @@ export default function TrackPublic({ token, compact }) {
         <dt>Pesanan</dt><dd>{d.item}</dd>
         {s === "sampai" && d.receiver_name && <><dt>Diterima oleh</dt><dd>{d.receiver_name}</dd></>}
         <dt>Kode</dt><dd className="mono">{d.code}</dd></dl></section>
-    {d.lat != null && <section className="panel fadeup" style={{ animationDelay: ".24s" }}><h2>Posisi kurir</h2>
-      <MapSVG origin={d.courier_pos || { lat: d.lat, lng: d.lng }} routes={[{ color: "var(--accent)", pts: [{ lat: d.lat, lng: d.lng }], pos: s === "jalan" ? d.courier_pos : null }]} label={false} showOrigin={false} title="Posisi kurir dan alamat tujuan" />
-      <p className="note">{s === "jalan" && d.courier_pos ? "Titik hitam = posisi kurir. Halaman ini diperbarui otomatis setiap 20 detik." : "Posisi kurir tampil saat pesanan dalam perjalanan."}</p></section>}
+    {d.lat != null && <section className="panel fadeup" style={{ animationDelay: ".24s" }}><h2>{s === "jalan" && d.courier_pos ? "Posisi kurir" : "Lokasi tujuan"}</h2>
+      <PinMap origin={s === "jalan" ? d.courier_pos : null} originText="🛵" stops={[{ lat: d.lat, lng: d.lng, title: "Alamat tujuan" }]} height={280} label="Peta posisi kurir dan alamat tujuan" />
+      <p className="note">{s === "jalan" && d.courier_pos ? "🛵 = posisi kurir, titik oranye = alamat tujuan. Diperbarui otomatis setiap 20 detik." : d.via === "internal" ? "Posisi kurir tampil saat pesanan dalam perjalanan." : "Titik oranye = alamat tujuan. Posisi driver bisa dilihat lewat tombol lacak driver di atas."}</p></section>}
     <p className="note" style={{ textAlign: "center" }}>Terima kasih sudah memesan di Exquise Patisserie.</p>
   </div>);
 }

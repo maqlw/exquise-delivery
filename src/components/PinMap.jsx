@@ -4,8 +4,9 @@ import "leaflet/dist/leaflet.css";
 
 const dot = (bg, txt) => L.divIcon({ className: "pin-ic", html: `<span style="background:${bg}">${txt}</span>`, iconSize: [28, 28], iconAnchor: [14, 14] });
 
+// shortcut: ubin peta dari server OpenStreetMap (gratis, ada batas wajar); pindah ke penyedia ubin lain kalau halaman lacak dibuka puluhan ribu kali/hari.
 // Peta jalan (OpenStreetMap). origin = outlet; stops = titik tujuan berurutan; onPick(lat,lng) -> titik tujuan pertama bisa digeser/ketuk.
-export default function PinMap({ origin, stops = [], onPick, height = 240, label = "Peta lokasi" }) {
+export default function PinMap({ origin, stops = [], onPick, height = 240, label = "Peta lokasi", originText = "EX" }) {
   const el = useRef(null), map = useRef(null), layer = useRef(null), pick = useRef(onPick);
   pick.current = onPick;
   useEffect(() => {
@@ -19,7 +20,7 @@ export default function PinMap({ origin, stops = [], onPick, height = 240, label
   useEffect(() => {
     const g = layer.current; g.clearLayers();
     const pts = stops.filter(s => s.lat != null), all = [...(origin?.lat != null ? [origin] : []), ...pts];
-    if (origin?.lat != null) L.marker([origin.lat, origin.lng], { icon: dot("#16201a", "EX"), keyboard: false }).addTo(g);
+    if (origin?.lat != null) L.marker([origin.lat, origin.lng], { icon: dot("#16201a", originText), keyboard: false }).addTo(g);
     if (all.length > 1) L.polyline(all.map(p => [p.lat, p.lng]), { color: "#c2552d", weight: 3, dashArray: "6 6" }).addTo(g);
     pts.forEach((p, i) => {
       const m = L.marker([p.lat, p.lng], { icon: dot("#c2552d", pts.length > 1 ? i + 1 : "●"), draggable: !!onPick && i === 0, title: p.title || "" }).addTo(g);
