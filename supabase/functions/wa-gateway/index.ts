@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
-// WhatsApp Gateway (admin saja): status perangkat, ganti token (dites dulu), QR / kode untuk menyambung ulang.
+// WhatsApp Gateway (staf): status perangkat, ganti token (dites dulu), QR / kode untuk menyambung ulang.
 // Token disimpan di tabel app_secrets (tidak bisa dibaca dari browser); kalau kosong pakai secret FONNTE_TOKEN (penyedia: Fonnte).
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -23,13 +23,14 @@ const profile = (d: any, token: string, source: string) => ({
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   const asUser = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } });
-  const { data: isAdmin } = await asUser.rpc("is_admin");
-  if (!isAdmin) return json({ error: "Hanya admin" }, 403);
+  const { data: isStaff } = await asUser.rpc("is_staff"); // status boleh dilihat semua staf; ganti token & QR hanya pemilik (di bawah)
+  if (!isStaff) return json({ error: "Hanya staf" }, 403);
   const { data: { user } } = await asUser.auth.getUser();
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const { action, token: newToken, type, whatsapp } = await req.json().catch(() => ({}));
   const { data: sec } = await db.from("app_secrets").select("value").eq("key", "fonnte_token").maybeSingle();
   const token = sec?.value || Deno.env.get("FONNTE_TOKEN") || "", source = sec?.value ? "pengaturan" : "server";
+  if ((action === "save" || action === "qr") && !(await asUser.rpc("is_owner")).data) return json({ error: "Hanya pemilik yang bisa mengganti token atau menyambung ulang WhatsApp" }, 403);
   try {
     if (action === "save") {
       const t = String(newToken ?? "").trim();

@@ -100,6 +100,11 @@ export async function lalamove(action, params = {}) {
   if (error) { let msg = error.message; try { msg = (await error.context.json()).error || msg; } catch { /* pakai pesan bawaan */ } throw new Error(msg); }
   return data;
 }
+export async function staffApi(action, params = {}) {
+  const { data, error } = await sb.functions.invoke("staff-account", { body: { action, ...params } });
+  if (error) { let msg = error.message; try { msg = (await error.context.json()).error || msg; } catch { /* pakai pesan bawaan */ } throw new Error(msg); }
+  return data;
+}
 export async function fonnteApi(action, params = {}) {
   const { data, error } = await sb.functions.invoke("wa-gateway", { body: { action, ...params } });
   if (error) { let msg = error.message; try { msg = (await error.context.json()).error || msg; } catch { /* pakai pesan bawaan */ } throw new Error(msg); }

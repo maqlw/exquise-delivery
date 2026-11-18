@@ -16,6 +16,7 @@ import CourierScreen from "./views/CourierScreen.jsx";
 import TrackPublic from "./views/TrackPublic.jsx";
 import TrackGroup from "./views/TrackGroup.jsx";
 import CekPage from "./views/CekPage.jsx";
+import { ChangePassword, ROLE } from "./views/Accounts.jsx";
 import Report from "./views/Report.jsx";
 import Settings from "./views/Settings.jsx";
 import Billing, { ServiceBanner } from "./views/Billing.jsx";
@@ -39,7 +40,7 @@ const useHash = () => { const [h, setH] = useState(location.hash.slice(1)); useE
 export default function App() {
   const track = location.pathname.match(/^\/(?:lacak|l)\/([A-Za-z0-9]+)/), grp = location.pathname.match(/^\/g\/([A-Za-z0-9]+)/);
   const invoice = location.pathname.match(/^\/invoice\/([A-Za-z0-9]+)/), provider = /^\/penyedia\/?$/.test(location.pathname);
-  const [session, setSession] = useState(undefined), [role, setRole] = useState(null);
+  const [session, setSession] = useState(undefined), [role, setRole] = useState(null), [me, setMe] = useState(null);
   useEffect(() => {
     if (track || grp || invoice || provider) return;
     api.sb.auth.getSession().then(({ data }) => setSession(data.session));
@@ -49,8 +50,8 @@ export default function App() {
   useEffect(() => {
     if (!session) { setRole(null); return; }
     (async () => {
-      const { data: admin } = await api.sb.rpc("is_admin");
-      if (admin) return setRole("admin");
+      const { data: staff } = await api.sb.rpc("my_staff"); // pemilik / admin / cs
+      if (staff) { setMe(staff); return setRole(staff.active ? "admin" : "off"); }
       const { data: kurir } = await api.sb.rpc("my_courier_id");
       setRole(kurir ? "kurir" : "none");
     })();
@@ -63,15 +64,18 @@ export default function App() {
   if (session === undefined || (session && !role)) return <div className="login"><span className="spin" aria-label="Memuat" /></div>;
   if (!session) return <Login />;
   if (role === "kurir") return <CourierScreen />;
+  if (role === "off") return <div className="login"><section className="panel"><h1>Akun dinonaktifkan</h1><p className="sub">Hubungi pemilik atau admin Exquise.</p><button className="btn primary" onClick={() => api.sb.auth.signOut()}>Keluar</button></section></div>;
+  if (me?.must_change_pw) return <ChangePassword forced onDone={() => setMe({ ...me, must_change_pw: false })} />;
   if (role === "none") return <div className="login"><section className="panel"><h1>Akun belum punya akses</h1><p className="sub">Akun ini belum terdaftar sebagai admin atau kurir. Hubungi admin Exquise.</p><button className="btn primary" onClick={() => api.sb.auth.signOut()}>Keluar</button></section></div>;
-  return <Admin email={session.user.email} />;
+  return <Admin email={session.user.email} me={me} />;
 }
 
-function Admin({ email }) {
-  const hash = useHash(), view = VIEWS[hash] ? hash : "dashboard", View = VIEWS[view];
+const CS_VIEWS = ["dashboard", "lacak"]; // CS hanya melihat & melacak
+function Admin({ email, me }) {
+  const hash = useHash(), nav = me.role === "cs" ? NAV.filter(n => CS_VIEWS.includes(n[0])) : NAV, view = VIEWS[hash] && nav.some(n => n[0] === hash) ? hash : "dashboard", View = VIEWS[view];
   const [toastEl, toast] = useToast();
   // Arah transisi halaman: menu ke bawah/kanan = masuk dari kanan, sebaliknya dari kiri.
-  const order = NAV.map(n => n[0]), prev = useRef(view), dir = order.indexOf(view) >= order.indexOf(prev.current) ? "swap-r" : "swap-l";
+  const order = nav.map(n => n[0]), prev = useRef(view), dir = order.indexOf(view) >= order.indexOf(prev.current) ? "swap-r" : "swap-l";
   useEffect(() => { prev.current = view; }, [view]);
   const [master, setMaster] = useState(null), [day, setDay] = useState(null), [date, setDate] = useState(null), [dates, setDates] = useState([]);
   const [ui, setUi] = useState({ origin: "ck", batch: 1, filter: "all", lacak: null, q: "" });
@@ -120,7 +124,7 @@ function Admin({ email }) {
     async remove(o) { await api.deleteOrder(o.id); setModal(null); toast(`Pesanan ${o.code} dihapus`); reload(); },
   };
   const close = () => setModal(null);
-  const ctx = { ...master, ...day, wa, setWa, reloadWa, svc, locked: svc?.status === "nonaktif", P, date, dates, ui, setUi, reload, toast, act, courier, setDate: d => reload(d) };
+  const ctx = { ...master, ...day, me, wa, setWa, reloadWa, svc, locked: svc?.status === "nonaktif", P, date, dates, ui, setUi, reload, toast, act, courier, setDate: d => reload(d) };
 
   return (
     <div className="frame"><div className="frame-inner">
@@ -130,10 +134,10 @@ function Admin({ email }) {
           <div style={{ minWidth: 0, flex: 1 }}><label htmlFor="ws-origin">Lokasi asal</label>
             <select id="ws-origin" value={ui.origin} onChange={e => setUi({ ...ui, origin: e.target.value })}>{Object.values(master.origins).map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></div></div>
         <div className="navlbl">Menu</div>
-        <nav aria-label="Tampilan">{NAV.map(([k, t, ic]) => (
+        <nav aria-label="Tampilan">{nav.map(([k, t, ic]) => (
           <a key={k} href={"#" + k} aria-label={t} title={t} aria-current={view === k ? "page" : undefined}><span className="ic" aria-hidden="true"><svg viewBox="0 0 24 24">{ic}</svg></span><span className="t" data-s={k === "upload" ? "Pengiriman" : k === "lacak" ? "Lacak" : t}>{t}</span>{k === "upload" && cek > 0 && <span className="badge">{cek}</span>}</a>))}</nav>
         <div className="spacer" />
-        <div className="who"><span className="avatar">{email.slice(0, 2).toUpperCase()}</span><div style={{ minWidth: 0, flex: 1 }}><b>Admin</b><span style={{ overflowWrap: "anywhere" }}>{email}</span></div>
+        <div className="who"><span className="avatar">{email.slice(0, 2).toUpperCase()}</span><div style={{ minWidth: 0, flex: 1 }}><b>{me.name || ROLE[me.role]}</b><span style={{ overflowWrap: "anywhere" }}>{ROLE[me.role]} · {email}</span></div>
           <button className="btn sm" style={{ background: "#1d2a22", color: "#fff" }} onClick={() => api.sb.auth.signOut()}>Keluar</button></div>
       </aside>
       <div className="viewport"><main><ServiceBanner svc={svc} /><WaAlert wa={wa} settings={master.settings} /><HomeRequests {...ctx} /><div key={view} className={`page-in ${dir}`}><View {...ctx} /></div></main></div>
