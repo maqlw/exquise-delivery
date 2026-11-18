@@ -89,3 +89,13 @@ test("parseLatLng: koordinat & link Google Maps, tolak di luar Indonesia", async
   const g = findArea(pinLabel(-6.2615, 106.8106));
   assert.equal(g.lat, -6.2615); assert.equal(g.how, "titik tepat di peta"); assert.ok(g.name.length > 3);
 });
+
+test("jasa kirim tambahan: disisipkan sebelum Pick up, nama publik dari kode", async () => {
+  const { VIA, setExtVia, viaName, viaKey } = await import("./logic.js");
+  setExtVia([{ key: "borzo", name: "Borzo" }, { key: "lalamove", name: "Palsu" }]);
+  assert.deepEqual(Object.keys(VIA), ["internal", "lalamove", "gosend", "grab", "borzo", "pickup"]);
+  assert.equal(VIA.lalamove, "Lalamove");
+  assert.equal(viaName("paxel_same_day"), "Paxel Same Day");
+  assert.equal(viaKey("Borzo (Mr. Speedy)"), "borzo_mr_speedy"); assert.equal(viaKey("99 Express"), "x99_express");
+  setExtVia([]); assert.deepEqual(Object.keys(VIA), ["internal", "lalamove", "gosend", "grab", "pickup"]);
+});

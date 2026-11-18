@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import PinMap from "../components/PinMap.jsx";
 import { Timeline, Pill, Logo } from "../components/ui.jsx";
 import { sb, proofUrl } from "../lib/api.js";
-import { VIA, LABEL, hhmm } from "../lib/logic.js";
+import { viaName, LABEL, hhmm } from "../lib/logic.js";
 
 // Halaman lacak untuk customer: tanpa login, hanya data pesanan ini. compact = versi ringkas di dalam daftar grup / halaman cek.
 export default function TrackPublic({ token, compact }) {
@@ -36,7 +36,7 @@ export default function TrackPublic({ token, compact }) {
         : eta != null ? <div className="etabig">{hhmm(eta)} <small>{live ? "perkiraan tiba" : "rencana tiba"}</small></div>
         : <div className="etabig" style={{ fontSize: 24 }}>Jadwal antar sedang disusun</div>}
       <Timeline steps={steps} />
-      {d.via !== "internal" && d.via !== "pickup" && d.ext_link && <a className="btn primary big" href={d.ext_link} target="_blank" rel="noopener">Lacak driver di {VIA[d.via]}</a>}
+      {d.via !== "internal" && d.via !== "pickup" && d.ext_link && <a className="btn primary big" href={d.ext_link} target="_blank" rel="noopener">Lacak driver di {viaName(d.via)}</a>}
       {d.proof_path && <div><div className="lbl">Foto bukti terima</div>{d.proof_path.startsWith("drive:") ? <p className="note">Foto sudah diarsipkan (lebih dari 30 hari). Hubungi Exquise bila memerlukannya.</p> : <img className="proof" src={proofUrl(d.proof_path)} alt="Foto bukti terima" />}</div>}</>;
   if (compact) return <div className="grp-detail">{status}<a className="btn ghost sm" href={`/l/${token}`} target="_blank" rel="noopener">Buka halaman lengkap ↗</a></div>;
   return shell(<div className="stack trackpage">

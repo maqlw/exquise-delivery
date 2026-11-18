@@ -5,6 +5,16 @@ export const CAP = 16, ROAD_FACTOR = 1.35; // shortcut: jarak garis lurus x fakt
 // Kecepatan rata-rata (km/jam) per batch dan menit berhenti per alamat; diisi dari Pengaturan saat aplikasi dimuat.
 export const TUNE = { speed: { 1: 15, 2: 18, 3: 15 }, stop: 10 };
 export const VIA = { internal: "Kurir internal", lalamove: "Lalamove", gosend: "GoSend", grab: "GrabExpress", pickup: "Pick up" };
+export const BUILTIN_VIA = Object.keys(VIA);
+// Jasa kirim tambahan dari Pengaturan (mis. Borzo) disisipkan sebelum "Pick up"; dipanggil saat data master dimuat.
+export function setExtVia(list = []) {
+  for (const k of Object.keys(VIA)) delete VIA[k];
+  const base = { internal: "Kurir internal", lalamove: "Lalamove", gosend: "GoSend", grab: "GrabExpress" };
+  Object.assign(VIA, base, Object.fromEntries(list.filter(x => x?.key && !BUILTIN_VIA.includes(x.key)).map(x => [x.key, x.name])), { pickup: "Pick up" });
+}
+// Halaman publik tidak membaca Pengaturan: nama jasa tambahan diambil dari kodenya (borzo -> Borzo).
+export const viaName = k => VIA[k] || String(k || "").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+export const viaKey = name => String(name || "").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").replace(/^(\d)/, "x$1").slice(0, 30);
 export const REL = ["Penerima langsung", "Keluarga / saudara", "Rekan kerja", "Satpam / resepsionis", "Tetangga", "Lainnya"];
 export const FAIL_REASONS = ["Penerima tidak ada", "Alamat tidak ditemukan", "Ditolak penerima", "Akses gedung ditutup", "Lainnya"];
 export const LABEL = { err: "Error", pickup: "Pick up", pihak3: "Via pihak ketiga", cek: "Perlu dicek", draft: "Menunggu rute", siap: "Siap dikirim", jalan: "Dalam perjalanan", sampai: "Sampai", gagal: "Gagal kirim" };
@@ -181,7 +191,8 @@ export function buildOrders(rows, origins = []) {
     const og = t("origin").toLowerCase(), hit = og && origins.find(x => [x.id, x.short, x.name].some(n => n && (og.includes(n.toLowerCase()) || n.toLowerCase().includes(og))));
     o.origin = hit ? hit.id : (origins.find(x => x.id === "ck") || origins[0])?.id || "ck";
     const b = t("batch").match(/[123]/); o.batchReq = b ? +b[0] : null;
-    const v = t("via").toLowerCase(); o.via = /lalamove/.test(v) ? "lalamove" : /gosend|gojek/.test(v) ? "gosend" : /grab/.test(v) ? "grab" : /pick/.test(v) ? "pickup" : "internal";
+    const v = t("via").toLowerCase(), ext = Object.entries(VIA).find(([k, n]) => !BUILTIN_VIA.includes(k) && v.includes(n.toLowerCase()));
+    o.via = ext ? ext[0] : /lalamove/.test(v) ? "lalamove" : /gosend|gojek/.test(v) ? "gosend" : /grab/.test(v) ? "grab" : /pick/.test(v) ? "pickup" : "internal";
     o.reqTime = null; o.areaManual = null;
     recompute(o);
     if (o.gd) byGd[o.gd] = o; out.push(o);

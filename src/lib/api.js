@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { TUNE, ALIASES } from "./logic.js";
+import { TUNE, ALIASES, setExtVia } from "./logic.js";
 import { compressImage } from "./image.js";
 
 export const SITE = import.meta.env.VITE_SITE_URL;
@@ -29,6 +29,7 @@ export async function loadMaster() {
   const settings = Object.fromEntries(must(st).map(r => [r.key, r.value]));
   if (settings.tuning) Object.assign(TUNE, settings.tuning); // dipakai perencanaan rute & ETA
   ALIASES.splice(0, ALIASES.length, ...(settings.aliases || []));
+  setExtVia(settings.ext_couriers || []);
   return { origins: Object.fromEntries(must(origins).map(o => [o.id, o])), couriers: must(couriers), settings, billing: Object.fromEntries((bl.data || []).map(r => [r.key, r.value])) };
 }
 export const saveSetting = async (key, value) => must(await sb.from("settings").upsert({ key, value, updated_at: new Date().toISOString() }));

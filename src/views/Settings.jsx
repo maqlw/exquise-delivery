@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Field } from "../components/ui.jsx";
 import { AreaPicker } from "../components/AreaPicker.jsx";
 import { sb, saveSetting, updateOrder, toDb, fonnteApi } from "../lib/api.js";
-import { TUNE, BATCH, recompute, normPhone } from "../lib/logic.js";
+import { TUNE, BATCH, recompute, normPhone, VIA, BUILTIN_VIA, viaKey } from "../lib/logic.js";
 
 const parseLL = v => { const m = String(v).match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/); return m && Math.abs(+m[1]) <= 90 && Math.abs(+m[2]) <= 180 ? [+m[1], +m[2]] : null; };
 const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 24);
@@ -30,6 +30,7 @@ export default function Settings({ origins, settings, orders, reload, toast, wa,
       <Tuning value={settings.tuning || TUNE} reload={reload} toast={toast} />
       <GroupMin value={settings.group_wa?.min ?? 3} reload={reload} toast={toast} />
       <ReturnGps value={settings.return_gps?.check !== false} reload={reload} toast={toast} />
+      <Couriers value={settings.ext_couriers || []} reload={reload} toast={toast} />
       <Aliases value={settings.aliases || []} orders={orders} reload={reload} toast={toast} />
     </div>
   </>);
@@ -186,4 +187,32 @@ function Aliases({ value, orders, reload, toast }) {
       if (k.trim().length < 3 || !area) return toast("Isi kata kunci (min. 3 huruf) dan pilih kelurahan dari daftar");
       persist([...list, { k: k.trim(), area }], `"${k.trim()}" disimpan`); setK(""); setArea(""); setKey(key + 1);
     }}>+ Simpan alamat dikenal</button></section>);
+}
+
+// Jasa kirim pihak ketiga tambahan (Borzo, dll.): tampil di pilihan Kiriman, Dispatch, Laporan. Bawaan tidak bisa dihapus.
+function Couriers({ value, reload, toast }) {
+  const [rows, setRows] = useState(value), [name, setName] = useState(""), [busy, setBusy] = useState(false);
+  const save = async (next, msg) => { setBusy(true); try { await saveSetting("ext_couriers", next); setRows(next); toast(msg); await reload(); } catch (e) { toast("Gagal: " + e.message); } setBusy(false); };
+  const NOTE = { internal: "kurir sendiri, status dari aplikasi kurir", lalamove: "tersambung otomatis: status, foto bukti & WA jalan sendiri", pickup: "diambil customer di outlet" };
+  function add() {
+    const n = name.trim(), key = viaKey(n);
+    if (key.length < 2) return toast("Nama jasa kirim minimal 2 huruf");
+    if (BUILTIN_VIA.includes(key) || rows.some(r => r.key === key || r.name.toLowerCase() === n.toLowerCase())) return toast(`${n} sudah ada`);
+    save([...rows, { key, name: n }], `${n} ditambahkan`).then(() => setName(""));
+  }
+  async function remove(r) {
+    const { count, error } = await sb.from("orders").select("id", { count: "exact", head: true }).eq("via", r.key);
+    if (error) return toast("Gagal: " + error.message);
+    if (count) return toast(`${r.name} masih dipakai ${count} pesanan. Ganti kirimannya dulu, atau cukup ubah namanya.`);
+    save(rows.filter(x => x.key !== r.key), `${r.name} dihapus`);
+  }
+  return (<section className="panel"><h2>Jasa kirim pihak ketiga</h2>
+    <p className="note">Jasa tambahan muncul di pilihan <b>Kiriman</b> (Data pengiriman, Tambah manual, Dispatch) dan di Laporan. Selain Lalamove, statusnya diubah manual: tempel link lacak di Dispatch, lalu <b>Update → Kirim</b> dan <b>Update → Sampai</b> (WhatsApp ke customer ikut terkirim).</p>
+    <ul className="hist">{BUILTIN_VIA.map(k => <li key={k} className="inv-row"><div><b>{VIA[k]}</b> <span className="meta">· bawaan{NOTE[k] ? ` · ${NOTE[k]}` : " · status manual"}</span></div></li>)}
+      {rows.map((r, i) => <li key={r.key} className="inv-row"><div style={{ flex: 1 }}><input aria-label={`Nama ${r.name}`} value={r.name} onChange={e => setRows(rows.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} /> <span className="meta">· status manual</span></div>
+        <div className="row"><button className="btn ghost sm" disabled={busy || !r.name.trim() || r.name === value.find(x => x.key === r.key)?.name} onClick={() => save(rows.map(x => ({ ...x, name: x.name.trim() })), "Nama disimpan")}>Simpan nama</button>
+          <button className="btn ghost sm danger" disabled={busy} onClick={() => remove(r)}>Hapus</button></div></li>)}</ul>
+    <div className="row" style={{ marginTop: 10 }}><input aria-label="Nama jasa kirim baru" placeholder="Nama jasa kirim, mis. Borzo" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === "Enter" && add()} style={{ flex: 1, minWidth: 180 }} />
+      <button className="btn primary" disabled={busy || !name.trim()} onClick={add}>+ Tambah</button></div>
+  </section>);
 }

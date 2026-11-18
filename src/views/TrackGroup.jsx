@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Pill, Logo, Search } from "../components/ui.jsx";
 import { sb } from "../lib/api.js";
-import { LABEL, VIA, dmy, fmtTime } from "../lib/logic.js";
+import { LABEL, viaName, dmy, fmtTime } from "../lib/logic.js";
 import TrackPublic from "./TrackPublic.jsx";
 
 // Halaman lacak grup: 1 pemesan, banyak penerima. Tanpa login, cukup token di link.
@@ -34,7 +34,7 @@ export function GroupList({ list, title, sub }) {
       {list.length > 5 && <Search value={q} onChange={setQ} placeholder="Cari nama penerima atau alamat" label="Cari penerima" count={vis.length} />}
       <ol className="grp-list">{vis.map(o => <li key={o.token} className={open === o.token ? "open" : ""}><button type="button" aria-expanded={open === o.token} onClick={() => setOpen(open === o.token ? null : o.token)}>
         <div style={{ minWidth: 0 }}><div className="addr">{o.recipient}{o.recipient_phone && <span className="mono-soft"> · {o.recipient_phone}</span>}</div><div className="meta">{o.item}</div><div className="meta">{o.address}</div>
-          <div className="meta">{o.status === "sampai" ? `Diterima ${o.receiver_name || ""} · ${fmtTime(o.delivered_at)}` : o.status === "gagal" ? `Belum berhasil: ${o.fail_reason || "-"}` : o.status === "jalan" ? `Diantar sejak ${fmtTime(o.sent_at)}` : o.via !== "internal" ? `Lewat ${VIA[o.via]}` : "Menunggu diantar"}</div></div>
+          <div className="meta">{o.status === "sampai" ? `Diterima ${o.receiver_name || ""} · ${fmtTime(o.delivered_at)}` : o.status === "gagal" ? `Belum berhasil: ${o.fail_reason || "-"}` : o.status === "jalan" ? `Diantar sejak ${fmtTime(o.sent_at)}` : o.via !== "internal" ? `Lewat ${viaName(o.via)}` : "Menunggu diantar"}</div></div>
         <Pill s={st(o)}>{st(o) === "siap" ? "Menunggu" : LABEL[st(o)]}</Pill></button>
         {open === o.token && <TrackPublic token={o.token} compact />}</li>)}</ol>
       {!vis.length && <p className="note">Tidak ada penerima yang cocok.</p>}</section></>);
