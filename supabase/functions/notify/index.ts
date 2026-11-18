@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
   const asUser = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
     global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
   });
-  const { data: o, error } = await asUser.from("orders").select("id, code, item, address, token, ship_date, sender, sender_phone, recipient, recipient_phone, receiver_name, fail_reason, status").eq("id", order_id).maybeSingle();
+  const { data: o, error } = await asUser.from("orders").select("id, code, item, address, token, ship_date, sender, sender_phone, recipient, recipient_phone, receiver_name, receiver_relation, fail_reason, status").eq("id", order_id).maybeSingle();
   if (error || !o) return json({ error: "Pesanan tidak ditemukan atau tidak boleh diakses" }, 403);
   if (kind === "kirim" && o.status !== "jalan") return json({ error: "Pesanan belum berstatus Dalam perjalanan" }, 409);
   if (kind === "sampai" && o.status !== "sampai") return json({ error: "Pesanan belum berstatus Sampai" }, 409);
@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
   const { data: st } = await admin.from("settings").select("value").eq("key", "wa_templates").maybeSingle();
   const tpl = (k: string) => (st?.value?.[k] || DEFAULT[k]).trim();
   const vars: Record<string, string> = {
-    pemesan: o.sender || "-", penerima: o.recipient || "-", diterima_oleh: o.receiver_name ?? o.recipient ?? "-",
+    pemesan: o.sender || "-", penerima: o.recipient || "-", diterima_oleh: (o.receiver_name ?? o.recipient ?? "-") + (o.receiver_relation && o.receiver_relation !== "Penerima langsung" ? ` (${o.receiver_relation})` : ""),
     alasan: o.fail_reason ?? "-", item: o.item || "", kode: o.code || "", alamat: o.address || "-", link: `${SITE}/l/${o.token}`,
   };
   const fill = (k: string) => tpl(k).replace(/\{(\w+)\}/g, (m, v) => vars[v] ?? m);

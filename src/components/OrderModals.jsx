@@ -99,8 +99,9 @@ export function SampaiForm({ order, onClose, onSave }) {
       footer={<><button className="btn ghost" onClick={onClose}>Batal</button><button className="btn ok" onClick={save} disabled={busy}>{busy ? "Menyimpan…" : "Simpan, pesanan sampai"}</button></>}>
       <p className="sub">{order.address}</p>
       <div className="form">
-        <Field id="s-name" full label="Nama penerima barang *"><input id="s-name" value={name} onChange={e => setName(e.target.value)} autoComplete="off" /></Field>
-        <Field id="s-rel" full label="Status penerima *"><select id="s-rel" value={rel} onChange={e => setRel(e.target.value)}>{REL.map(r => <option key={r}>{r}</option>)}</select></Field>
+        <Field id="s-rel" full label="Siapa yang menerima? *"><select id="s-rel" value={rel} onChange={e => { const v = e.target.value; setRel(v);
+          if (v === REL[0]) setName(order.recipient); else if (name.trim() === order.recipient) setName(""); /* diterima orang lain: nama wajib diisi ulang */ }}>{REL.map(r => <option key={r}>{r}</option>)}</select></Field>
+        <Field id="s-name" full label={rel === REL[0] ? "Nama penerima barang *" : `Nama yang menerima (${rel.toLowerCase()}) *`}><input id="s-name" value={name} onChange={e => setName(e.target.value)} autoComplete="off" placeholder={rel === REL[0] ? order.recipient : "mis. Aldi"} /></Field>
         <div className="fld full"><span className="flabel">Foto bukti terima</span>
           <div className="row"><label className="btn ghost" htmlFor="s-photo">Ambil / pilih foto</label>
             <input type="file" id="s-photo" accept="image/*" capture="environment" hidden onChange={e => { const f = e.target.files[0]; if (f) { setFile(f); setPrev(URL.createObjectURL(f)); } }} />

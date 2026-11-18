@@ -13,6 +13,7 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v027** | 18/11/2026 | Form Sampai: pilih dulu siapa yang menerima; kalau bukan penerima langsung, nama yang menerima wajib diisi (tidak lagi otomatis nama di pesanan). WA "sudah diterima oleh" menyebut hubungannya, mis. "Aldi (Satpam / resepsionis)". |
 | **v026** | 18/11/2026 | Kurir berhalangan: pindahkan alamat (satu-satu atau semua sisa) ke kurir lain setelah rute dikirim. Perbaikan: pesanan yang diganti ke pihak ketiga otomatis keluar dari rute kurir. HP kurir memperbarui rute tiap 30 detik. |
 | **v025** | 18/11/2026 | Pengaturan → Jasa kirim pihak ketiga: tambah / ubah nama / hapus jasa kirim (Borzo sudah ditambahkan), ikut terbaca dari kolom kiriman Excel; database tidak lagi membatasi 5 jasa kirim. |
 | **v024** | 18/11/2026 | Lalamove: opsi tambahan per kendaraan (tas thermal, pulang pergi, waktu tunggu, antar sampai pintu, tol dalam kota) ikut ongkir; catatan untuk driver (mis. lewat pintu belakang); tip prioritas saat masih mencari driver. Data uji dibersihkan untuk live. |
