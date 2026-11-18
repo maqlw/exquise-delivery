@@ -10,10 +10,15 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 const hex = (b: ArrayBuffer) => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join("");
 const e164 = (p: string | null) => p ? "+" + p.replace(/\D/g, "").replace(/^0/, "62") : null;
 
+const PROD = (Deno.env.get("LALAMOVE_ENV") || "").trim().toLowerCase() === "production";
+// Key Lalamove: sandbox diawali pk_test_, production pk_prod_. Dicek supaya salah pasang langsung ketahuan.
+const keyMode = (k = Deno.env.get("LALAMOVE_API_KEY") || "") => k.startsWith("pk_prod") ? "production" : k.startsWith("pk_test") ? "sandbox" : k ? "tidak dikenal" : "kosong";
 async function llm(method: string, path: string, data?: unknown) {
-  const key = Deno.env.get("LALAMOVE_API_KEY"), secret = Deno.env.get("LALAMOVE_API_SECRET");
+  const key = (Deno.env.get("LALAMOVE_API_KEY") || "").trim(), secret = (Deno.env.get("LALAMOVE_API_SECRET") || "").trim();
   if (!key || !secret) throw new Error("LALAMOVE_API_KEY / LALAMOVE_API_SECRET belum diatur di Supabase secrets");
-  const host = Deno.env.get("LALAMOVE_ENV") === "production" ? "https://rest.lalamove.com" : "https://rest.sandbox.lalamove.com";
+  if (PROD && keyMode(key) === "sandbox") throw new Error("LALAMOVE_ENV = production, tapi API key yang terpasang masih key sandbox (pk_test_…). Ganti dengan key production (pk_prod_…).");
+  if (!PROD && keyMode(key) === "production") throw new Error("Key production (pk_prod_…) sudah terpasang, tapi LALAMOVE_ENV belum diisi production.");
+  const host = PROD ? "https://rest.lalamove.com" : "https://rest.sandbox.lalamove.com";
   const body = data === undefined ? "" : JSON.stringify({ data }), ts = Date.now().toString();
   const k = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const sig = hex(await crypto.subtle.sign("HMAC", k, new TextEncoder().encode(`${ts}\r\n${method}\r\n${path}\r\n\r\n${body}`)));
@@ -81,6 +86,7 @@ Deno.serve(async (req) => {
   try {
     if (action === "register_webhook") return json(await llm("PATCH", "/v3/webhook", { url: `${URL_}/functions/v1/lalamove` }));
     if (action === "notify_check") return json(await notify("00000000-0000-0000-0000-000000000000", "kirim"));
+    if (action === "mode") return json({ env: PROD ? "production" : "sandbox", key: keyMode(), secret_set: !!Deno.env.get("LALAMOVE_API_SECRET") });
     if (action === "services") {
       const cities = await llm("GET", "/v3/cities");
       const jkt = (cities || []).find((c: any) => /jakarta/i.test(c.name || c.locode || "")) || cities?.[0];
