@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import MapSVG from "../components/MapSVG.jsx";
 import PinMap from "../components/PinMap.jsx";
 import { Pill, Empty, StopInfo } from "../components/ui.jsx";
@@ -82,9 +82,20 @@ const canMulti = o => o.via === "lalamove" && !["jalan", "sampai", "gagal"].incl
 const LLM_STATUS = { ASSIGNING_DRIVER: "Mencari driver", ON_GOING: "Driver menuju outlet", PICKED_UP: "Sedang diantar", COMPLETED: "Selesai", CANCELED: "Dibatalkan", REJECTED: "Ditolak", EXPIRED: "Kedaluwarsa" };
 const VEH = { MOTORCYCLE: "Motor", SEDAN: "Mobil sedan", MPV: "Mobil MPV", VAN: "Van" }; // jenis lain di Jakarta truk/bak, tidak cocok untuk kue
 const rp = n => "Rp " + Number(n || 0).toLocaleString("id-ID");
+let svcP = null; // daftar kendaraan + opsi tambahan Lalamove, dimuat sekali untuk semua kotak
+const loadSvc = () => (svcP ||= lalamove("services").catch(e => { svcP = null; throw e; }));
+function useSvc(toast) { const [svc, setSvc] = useState(null); useEffect(() => { loadSvc().then(r => setSvc(r.services || [])).catch(e => toast(e.message)); }, []); return svc; }
+// Opsi tambahan (tas thermal, pulang pergi, prioritas, …) sesuai jenis kendaraan + catatan untuk driver.
+const SP_ID = { THERMAL_BAG_1: "Tas thermal", ROUND_TRIP: "Pulang pergi", WAITING_TIME_060MIN: "Waktu tunggu tambahan (s/d 1 jam)", DOOR_TO_DOOR_1DRIVER: "Antar sampai pintu (driver masuk/naik gedung)", TOLL_FEE_1: "Bayar tol dalam kota", LOADING_1HELPER: "Bantuan bongkar muat" };
+function LlmOptions({ svc, type, sp, setSp, note, setNote, id }) {
+  const list = (svc?.find(s => s.key === type)?.specials || []).filter(r => !/^TOLL_FEE_[2-9]/.test(r.name)); // tol luar kota tidak dipakai untuk kue
+  return (<div className="llm-opt">
+    {list.length > 0 && <fieldset><legend className="lbl">Opsi tambahan Lalamove</legend>{list.map(r => <label key={r.name} className="chk"><input type="checkbox" checked={sp.includes(r.name)} onChange={() => setSp(sp.includes(r.name) ? sp.filter(x => x !== r.name) : [...sp, r.name])} /> {SP_ID[r.name] || r.description}</label>)}</fieldset>}
+    <input aria-label="Catatan untuk driver" id={id} placeholder="Catatan untuk driver, mis. lewat pintu belakang / lobby lt 8 / titip satpam" value={note} maxLength={300} onChange={e => setNote(e.target.value)} /></div>);
+}
 // Pesan Lalamove langsung dari sini: cek ongkir -> pesan -> cek status / batalkan.
 function LalamoveBox({ o, toast, reload, org, act }) {
-  const [svc, setSvc] = useState(null), [type, setType] = useState("MOTORCYCLE"), [q, setQ] = useState(null), [busy, setBusy] = useState(""), [st, setSt] = useState(null);
+  const svc = useSvc(toast), [type, setType] = useState("MOTORCYCLE"), [q, setQ] = useState(null), [busy, setBusy] = useState(""), [st, setSt] = useState(null), [sp, setSp] = useState([]), [note, setNote] = useState("");
   const run = async (label, fn) => { setBusy(label); try { await fn(); } catch (e) { toast(e.message); } setBusy(""); };
   const live = o.llm && !["CANCELED", "REJECTED", "EXPIRED"].includes(o.llm.status);
   if (live) return (<div className="llm">
@@ -92,13 +103,16 @@ function LalamoveBox({ o, toast, reload, org, act }) {
     {st?.driver && <div className="meta">Driver {st.driver.name} · {st.driver.plate} · <a href={`tel:${st.driver.phone}`}>{st.driver.phone}</a></div>}
     <div className="row"><button className="btn ghost sm" disabled={!!busy} onClick={() => run("s", async () => { setSt(await lalamove("status", { order_id: o.id })); reload(); })}>{busy === "s" ? "Memuat…" : "Cek status"}</button>
       {o.link && <a className="btn ghost sm" href={o.link} target="_blank" rel="noopener">Buka tracking</a>}
+      {["ASSIGNING_DRIVER"].includes((st || o.llm).status) && <select aria-label="Tambah tip prioritas" value="" disabled={!!busy} onChange={e => { const v = +e.target.value; if (v && confirm(`Tambah tip prioritas ${rp(v)} supaya lebih cepat dapat driver? Biaya ini ikut terpotong.`)) run("t", async () => { await lalamove("priority", { order_id: o.id, amount: v }); toast(`Tip prioritas ${rp(v)} ditambahkan`); }); }}>
+        <option value="">+ Tip prioritas…</option>{[5000, 10000, 15000, 20000].map(v => <option key={v} value={v}>{rp(v)}</option>)}</select>}
       {["ASSIGNING_DRIVER"].includes((st || o.llm).status) && <button className="btn ghost sm danger" disabled={!!busy} onClick={() => run("c", async () => { await lalamove("cancel", { order_id: o.id }); toast("Order Lalamove dibatalkan"); reload(); })}>Batalkan</button>}</div></div>);
   return (<div className="llm">
     <div className="row">
-      <select aria-label={`Jenis kendaraan ${o.code}`} value={type} onFocus={() => !svc && lalamove("services").then(r => setSvc(r.services || [])).catch(e => toast(e.message))} onChange={e => { setType(e.target.value); setQ(null); }}>
+      <select aria-label={`Jenis kendaraan ${o.code}`} value={type} onChange={e => { setType(e.target.value); setSp([]); setQ(null); }}>
         {(svc?.filter(s => VEH[s.key]).length ? svc.filter(s => VEH[s.key]) : [{ key: "MOTORCYCLE" }]).map(s => <option key={s.key} value={s.key}>{VEH[s.key]}</option>)}</select>
-      <button className="btn ghost sm" disabled={!!busy || o.lat == null} onClick={() => run("q", async () => setQ(await lalamove("quote", { order_id: o.id, service: type })))}>{busy === "q" ? "Menghitung…" : "Cek ongkir"}</button>
-      {q && <button className="btn primary sm" disabled={!!busy} onClick={() => run("b", async () => { const r = await lalamove("book", { order_id: o.id, service: type, quotation_id: q.quotation_id, sender_stop: q.sender_stop, recipient_stop: q.recipient_stop }); toast(`Lalamove dipesan · ${LLM_STATUS[r.status] || r.status}`); setQ(null); reload(); })}>{busy === "b" ? "Memesan…" : `Pesan ${rp(q.price)}`}</button>}</div>
+      <button className="btn ghost sm" disabled={!!busy || o.lat == null} onClick={() => run("q", async () => setQ(await lalamove("quote", { order_id: o.id, service: type, special: sp, note })))}>{busy === "q" ? "Menghitung…" : "Cek ongkir"}</button>
+      {q && <button className="btn primary sm" disabled={!!busy} onClick={() => run("b", async () => { const r = await lalamove("book", { order_id: o.id, service: type, quotation_id: q.quotation_id, sender_stop: q.sender_stop, recipient_stop: q.recipient_stop, note }); toast(`Lalamove dipesan · ${LLM_STATUS[r.status] || r.status}`); setQ(null); reload(); })}>{busy === "b" ? "Memesan…" : `Pesan ${rp(q.price)}`}</button>}</div>
+    <LlmOptions svc={svc} type={type} sp={sp} setSp={v => { setSp(v); setQ(null); }} note={note} setNote={setNote} id={`llm-note-${o.id}`} />
     {o.lat == null ? <div className="meta">Tandai lokasinya di peta dulu (Edit pesanan) supaya ongkir bisa dihitung.</div>
       : <details className="llm-map"><summary>Cek titik di peta {/^pin:/.test(o.areaManual || "") ? "· titik tepat" : "· masih perkiraan dari alamat"}</summary>
         <PinMap origin={org} stops={[{ lat: o.lat, lng: o.lng, title: o.recipient }]} height={220} label={`Peta ${o.recipient}`} />
@@ -117,16 +131,17 @@ function ExtRow({ o, save, toast, reload, act, org, checked, onCheck }) {
 
 // 1 driver Lalamove ke banyak alamat: Lalamove menyusun urutan searah (isRouteOptimized), satu ongkir total.
 function LalamoveMulti({ list, origins, toast, reload, done }) {
-  const [type, setType] = useState("MOTORCYCLE"), [q, setQ] = useState(null), [busy, setBusy] = useState("");
+  const svc = useSvc(toast), [type, setType] = useState("MOTORCYCLE"), [q, setQ] = useState(null), [busy, setBusy] = useState(""), [sp, setSp] = useState([]), [note, setNote] = useState("");
   const run = async (label, fn) => { setBusy(label); try { await fn(); } catch (e) { toast(e.message); } setBusy(""); };
   const ids = list.map(o => o.id), org = origins[list[0].origin], mixed = new Set(list.map(o => o.origin)).size > 1;
   const km = q?.distance?.value ? q.distance.value / 1000 : null, eta = km != null ? Math.round(km / 22 * 60 + list.length * 8) : null; // shortcut: kecepatan rata-rata 22 km/jam + 8 menit per alamat, ganti ke data Lalamove kalau tersedia
   const by = Object.fromEntries(list.map(o => [o.id, o]));
   return (<div className="llm llm-multi"><div><b>1 driver Lalamove · {list.length} alamat</b>{mixed ? " · beda outlet, tidak bisa digabung" : ` · dari ${org.short}`}</div>
-    <div className="row"><select aria-label="Jenis kendaraan gabungan" value={type} onChange={e => { setType(e.target.value); setQ(null); }}>{Object.entries(VEH).map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select>
-      <button className="btn ghost sm" disabled={!!busy || mixed} onClick={() => run("q", async () => setQ(await lalamove("quote_multi", { order_ids: ids, service: type })))}>{busy === "q" ? "Menghitung…" : "Cek ongkir & rute"}</button>
-      {q && <button className="btn primary sm" disabled={!!busy} onClick={() => run("b", async () => { const r = await lalamove("book_multi", { order_ids: ids, service: type, quotation_id: q.quotation_id, sender_stop: q.sender_stop, stops: q.stops }); toast(`Lalamove dipesan · ${list.length} alamat · ${LLM_STATUS[r.status] || r.status}`); setQ(null); done(); reload(); })}>{busy === "b" ? "Memesan…" : `Pesan 1 driver ${rp(q.price)}`}</button>}
+    <div className="row"><select aria-label="Jenis kendaraan gabungan" value={type} onChange={e => { setType(e.target.value); setSp([]); setQ(null); }}>{Object.entries(VEH).map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select>
+      <button className="btn ghost sm" disabled={!!busy || mixed} onClick={() => run("q", async () => setQ(await lalamove("quote_multi", { order_ids: ids, service: type, special: sp, note })))}>{busy === "q" ? "Menghitung…" : "Cek ongkir & rute"}</button>
+      {q && <button className="btn primary sm" disabled={!!busy} onClick={() => run("b", async () => { const r = await lalamove("book_multi", { order_ids: ids, service: type, quotation_id: q.quotation_id, sender_stop: q.sender_stop, stops: q.stops, note }); toast(`Lalamove dipesan · ${list.length} alamat · ${LLM_STATUS[r.status] || r.status}`); setQ(null); done(); reload(); })}>{busy === "b" ? "Memesan…" : `Pesan 1 driver ${rp(q.price)}`}</button>}
       <button className="btn ghost sm" onClick={done}>Batal pilih</button></div>
+    <LlmOptions svc={svc} type={type} sp={sp} setSp={v => { setSp(v); setQ(null); }} note={note} setNote={setNote} id="llm-note-multi" />
     {q && <>
       <div className="llm-sum"><div><span className="lbl">Total ongkir</span><b>{rp(q.price)}</b></div><div><span className="lbl">Jarak rute</span><b>{km != null ? `${km.toFixed(1)} km` : "-"}</b></div>
         <div><span className="lbl">Perkiraan selesai</span><b>{eta != null ? `± ${eta} menit` : "-"}</b></div><div><span className="lbl">Rata-rata / alamat</span><b>{rp(Math.round(q.price / list.length))}</b></div></div>

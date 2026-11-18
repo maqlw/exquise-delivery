@@ -31,6 +31,10 @@ async function llm(method: string, path: string, data?: unknown) {
   return j.data ?? j;
 }
 
+// Opsi tambahan Lalamove (tas thermal, pulang pergi, dll.) = nama special request dari /v3/cities; catatan driver masuk remarks.
+const specials = (v: unknown) => (Array.isArray(v) ? v : []).map(String).filter(x => /^[A-Z0-9_]{2,60}$/.test(x)).slice(0, 10);
+const noteOf = (v: unknown) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, 300);
+let svcCache: { at: number; data: unknown } | null = null; // katalog kendaraan jarang berubah: simpan 10 menit
 const URL_ = Deno.env.get("SUPABASE_URL")!, SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 // WhatsApp lewat fungsi notify yang sama (template dari Pengaturan), dipanggil sebagai server.
 const notify = (order_id: string, kind: string) => fetch(`${URL_}/functions/v1/notify`, { method: "POST", headers: { Authorization: `Bearer ${SERVICE}`, "Content-Type": "application/json" }, body: JSON.stringify({ order_id, kind }) }).then(r => r.json()).catch(e => ({ error: String(e) }));
@@ -82,15 +86,19 @@ Deno.serve(async (req) => {
   const asUser = createClient(URL_, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } });
   const { data: isAdmin } = await asUser.rpc("is_admin");
   if (!isAdmin) return json({ error: "Hanya admin" }, 403);
-  const { action, order_id, service, quotation_id, sender_stop, recipient_stop, order_ids, stops } = payload;
+  const { action, order_id, service, quotation_id, sender_stop, recipient_stop, order_ids, stops } = payload, special = specials(payload.special), note = noteOf(payload.note);
   try {
     if (action === "register_webhook") return json(await llm("PATCH", "/v3/webhook", { url: `${URL_}/functions/v1/lalamove` }));
     if (action === "notify_check") return json(await notify("00000000-0000-0000-0000-000000000000", "kirim"));
     if (action === "mode") return json({ env: PROD ? "production" : "sandbox", key: keyMode(), secret_set: !!Deno.env.get("LALAMOVE_API_SECRET") });
     if (action === "services") {
-      const cities = await llm("GET", "/v3/cities");
-      const jkt = (cities || []).find((c: any) => /jakarta/i.test(c.name || c.locode || "")) || cities?.[0];
-      return json({ city: jkt?.name, services: (jkt?.services || []).map((s: any) => ({ key: s.key, description: s.description })) });
+      if (!svcCache || Date.now() - svcCache.at > 600e3) {
+        const cities = await llm("GET", "/v3/cities");
+        const jkt = (cities || []).find((c: any) => /jakarta/i.test(c.name || c.locode || "")) || cities?.[0];
+        svcCache = { at: Date.now(), data: { city: jkt?.name, services: (jkt?.services || []).map((s: any) => ({ key: s.key, description: s.description,
+          specials: (s.specialRequests || []).map((r: any) => ({ name: r.name, description: r.description || r.name, parent: r.parent_type || r.parentType || null, max: r.max_selection ?? r.maxSelection ?? null })) })) } };
+      }
+      return json(svcCache.data);
     }
     if (action === "resolve_link") { // link pendek Google Maps -> link panjang berisi koordinat; hanya mengikuti host Google
       let u = String(payload.url || "");
@@ -112,7 +120,7 @@ Deno.serve(async (req) => {
       const busyOs = os.filter((o: any) => o.llm_order_id && !["CANCELED", "REJECTED", "EXPIRED"].includes(o.llm_status)); if (busyOs.length) return json({ error: `Sudah punya order Lalamove aktif: ${busyOs.map((o: any) => o.code).join(", ")}` }, 409);
       const org = os[0].origins;
       if (action === "quote_multi") {
-        const q = await llm("POST", "/v3/quotations", { serviceType: service || "MOTORCYCLE", language: "id_ID", isRouteOptimized: true,
+        const q = await llm("POST", "/v3/quotations", { serviceType: service || "MOTORCYCLE", language: "id_ID", isRouteOptimized: true, ...(special.length ? { specialRequests: special } : {}),
           stops: [{ coordinates: { lat: String(org.lat), lng: String(org.lng) }, address: org.name }, ...os.map((o: any) => ({ coordinates: { lat: String(o.lat), lng: String(o.lng) }, address: o.address }))] });
         // urutan stop dari Lalamove (sudah dioptimalkan) dicocokkan balik ke pesanan lewat alamat + koordinat
         const rest = [...os], near = (s: any, o: any) => Math.abs(+s.coordinates?.lat - o.lat) < 1e-5 && Math.abs(+s.coordinates?.lng - o.lng) < 1e-5;
@@ -128,7 +136,7 @@ Deno.serve(async (req) => {
       if (!senderPhone) return json({ error: `No HP ${org.short} belum diisi di Pengaturan → Lokasi asal` }, 400);
       const list = (Array.isArray(stops) ? stops : []).filter((x: any) => by[x.order_id]);
       if (list.length !== os.length) return json({ error: "Data urutan tidak lengkap, cek ongkir ulang" }, 400);
-      const recipients = list.map((x: any) => { const o = by[x.order_id]; return { stopId: x.stop_id, name: o.recipient_phone ? o.recipient : `${o.recipient} (via ${o.sender})`, phone: e164(o.recipient_phone || o.sender_phone), remarks: [o.code, o.item, o.notes].filter(Boolean).join(" · ").slice(0, 500) }; });
+      const recipients = list.map((x: any) => { const o = by[x.order_id]; return { stopId: x.stop_id, name: o.recipient_phone ? o.recipient : `${o.recipient} (via ${o.sender})`, phone: e164(o.recipient_phone || o.sender_phone), remarks: [o.code, o.item, note, o.notes].filter(Boolean).join(" · ").slice(0, 500) }; });
       const noPhone = list.filter((_: any, i: number) => !recipients[i].phone); if (noPhone.length) return json({ error: `Tanpa No HP penerima/pemesan: ${noPhone.map((x: any) => by[x.order_id].code).join(", ")}` }, 400);
       const r = await llm("POST", "/v3/orders", { quotationId: quotation_id, isPODEnabled: true, sender: { stopId: sender_stop, name: `Exquise ${org.short}`, phone: senderPhone }, recipients, metadata: { codes: os.map((o: any) => o.code).join(",").slice(0, 200) } });
       const share = Math.round(Number(r.priceBreakdown?.total || 0) / os.length) || null; // ongkir dibagi rata per pesanan untuk laporan
@@ -140,7 +148,7 @@ Deno.serve(async (req) => {
     if (action === "quote") {
       if (o.lat == null) return json({ error: "Alamat belum punya titik peta. Pilih kelurahannya dulu di Data pengiriman." }, 400);
       const q = await llm("POST", "/v3/quotations", {
-        serviceType: service || "MOTORCYCLE", language: "id_ID",
+        serviceType: service || "MOTORCYCLE", language: "id_ID", ...(special.length ? { specialRequests: special } : {}),
         stops: [{ coordinates: { lat: String(o.origins.lat), lng: String(o.origins.lng) }, address: o.origins.name },
                 { coordinates: { lat: String(o.lat), lng: String(o.lng) }, address: o.address }],
       });
@@ -154,7 +162,7 @@ Deno.serve(async (req) => {
       const r = await llm("POST", "/v3/orders", {
         quotationId: quotation_id, isPODEnabled: true,
         sender: { stopId: sender_stop, name: `Exquise ${o.origins.short}`, phone: senderPhone },
-        recipients: [{ stopId: recipient_stop, name: o.recipient_phone ? o.recipient : `${o.recipient} (via ${o.sender})`, phone: toPhone, remarks: [o.code, o.item, o.notes].filter(Boolean).join(" · ").slice(0, 500) }],
+        recipients: [{ stopId: recipient_stop, name: o.recipient_phone ? o.recipient : `${o.recipient} (via ${o.sender})`, phone: toPhone, remarks: [o.code, o.item, note, o.notes].filter(Boolean).join(" · ").slice(0, 500) }],
         metadata: { code: o.code },
       });
       await db.from("orders").update({ via: "lalamove", llm_order_id: r.orderId, llm_stop_id: null, llm_status: r.status, llm_price: r.priceBreakdown?.total ?? null, llm_service: service || null, ext_link: r.shareLink || o.ext_link }).eq("id", o.id);
@@ -166,6 +174,12 @@ Deno.serve(async (req) => {
       let driver = null;
       if (r.driverId) { try { const d = await llm("GET", `/v3/orders/${o.llm_order_id}/drivers/${r.driverId}`); driver = { name: d.name, phone: d.phone, plate: d.plateNumber }; } catch { /* driver belum tersedia */ } }
       return json({ status: r.status, share_link: r.shareLink, driver, wa });
+    }
+    if (action === "priority") { // tip prioritas saat masih mencari driver (Lalamove: priority fee)
+      const amt = Math.round(Number(payload.amount));
+      if (!(amt >= 1000 && amt <= 50000)) return json({ error: "Tip prioritas harus Rp1.000–Rp50.000" }, 400);
+      if (o.llm_status !== "ASSIGNING_DRIVER") return json({ error: "Tip prioritas hanya bisa saat masih mencari driver" }, 409);
+      return json(await llm("POST", `/v3/orders/${o.llm_order_id}/priority-fee`, { priorityFee: String(amt) }));
     }
     if (action === "cancel") {
       await llm("DELETE", `/v3/orders/${o.llm_order_id}`);

@@ -487,3 +487,5 @@ ol.stops li:first-child{border-top:0}
 .llm-multi{border:2px solid var(--accent);margin-bottom:12px}
 .llm-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:8px 0}.llm-sum div{background:var(--sunk);border-radius:10px;padding:8px 10px;display:grid}.llm-sum b{font-size:16px}
 .llm-seq{margin:6px 0 0;padding:0;list-style:none;display:grid;gap:4px;font-size:14px}
+.llm-opt{display:grid;gap:8px;margin:8px 0}.llm-opt fieldset{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:6px 14px}.llm-opt legend{width:100%;margin-bottom:2px}
+.llm-opt .chk{display:inline-flex;gap:6px;align-items:center;font-size:14px}.llm-opt input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}

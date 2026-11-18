@@ -13,6 +13,7 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v024** | 18/11/2026 | Lalamove: opsi tambahan per kendaraan (tas thermal, pulang pergi, waktu tunggu, antar sampai pintu, tol dalam kota) ikut ongkir; catatan untuk driver (mis. lewat pintu belakang); tip prioritas saat masih mencari driver. Data uji dibersihkan untuk live. |
 | **v023** | 18/11/2026 | Akun staf di Pengaturan → Akun: 3 level (Pemilik / Admin / CS lihat saja), tambah akun dengan password sementara (wajib ganti saat login pertama), ubah level, reset password, nonaktifkan. Token WhatsApp hanya Pemilik. Batasan dikunci di database. |
 | **v022** | 18/11/2026 | Tombol "Cari di Google Maps" di bawah kolom alamat (gratis, salin link lalu tempel jadi titik tepat); Lalamove: LALAMOVE_ENV tidak peka huruf besar, peringatan jelas bila key sandbox/production tidak cocok dengan mode. |
 | **v021** | 18/11/2026 | Halaman lacak customer pakai peta jalan OpenStreetMap (gratis): titik tujuan + posisi kurir saat diantar, keterangan untuk kiriman Lalamove/pihak ketiga. |
