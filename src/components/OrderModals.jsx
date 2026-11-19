@@ -9,10 +9,11 @@ const toMin = t => t ? +t.slice(0, 2) * 60 + +t.slice(3, 5) : null;
 
 export function OrderForm({ order, origins, defaults, onClose, onSave, history = [] }) {
   const v = order || defaults;
+  const onRoad = ["jalan", "sampai", "gagal"].includes(v.ship); // batch tidak bisa dipindah setelah pesanan dibawa kurir
   const [f, setF] = useState({
     ymd: v.ymd || "", gd: v.gd || "", sender: v.sender || "", psender: v.phoneSender || "", recipient: v.recipient || "", phone: v.phone || "",
     address: v.address || "", area: v.areaManual || "", item: v.item || "", notes: v.notes || "", origin: v.origin || "ck",
-    batch: v.batchReq ?? "", req: v.reqTime != null ? hhmm(v.reqTime).replace(".", ":") : "", via: v.via || "internal",
+    batch: v.batchForced ?? v.batchReq ?? "", req: v.reqTime != null ? hhmm(v.reqTime).replace(".", ":") : "", via: v.via || "internal",
   });
   const [err, setErr] = useState(""), [busy, setBusy] = useState(false), [gm, setGm] = useState("");
   const set = k => e => setF({ ...f, [k]: e.target.value });
@@ -60,7 +61,7 @@ export function OrderForm({ order, origins, defaults, onClose, onSave, history =
         <Field id="f-item" label="Item *"><input id="f-item" value={f.item} onChange={set("item")} /></Field>
         <Field id="f-notes" full label="Wording / catatan"><input id="f-notes" value={f.notes} onChange={set("notes")} /></Field>
         <Field id="f-origin" label="Lokasi asal"><select id="f-origin" value={f.origin} onChange={set("origin")}>{Object.values(origins).map(x => <option key={x.id} value={x.id}>{x.short}</option>)}</select></Field>
-        <Field id="f-batch" label="Batch"><select id="f-batch" value={f.batch} onChange={set("batch")}><option value="">Otomatis</option>{[1, 2, 3].map(b => <option key={b} value={b}>Batch {b} · {BATCH[b].label}</option>)}</select></Field>
+        <Field id="f-batch" label={<>Batch{onRoad && <span className="hint">sudah dibawa kurir</span>}</>}><select id="f-batch" value={f.batch} onChange={set("batch")} disabled={onRoad}><option value="">Otomatis</option>{[1, 2, 3].map(b => <option key={b} value={b}>Batch {b} · {BATCH[b].label}</option>)}</select></Field>
         <Field id="f-req" label="Request jam tiba (opsional)"><input type="time" id="f-req" value={f.req} onChange={set("req")} /></Field>
         <Field id="f-via" label="Kiriman"><select id="f-via" value={f.via} onChange={set("via")}>{Object.entries(VIA).map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select></Field>
       </div>
