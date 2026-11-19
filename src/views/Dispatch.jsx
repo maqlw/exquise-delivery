@@ -174,35 +174,39 @@ function LalamoveBox({ o, toast, reload, org, act }) {
       : <details className="llm-map"><summary>Cek titik di peta {/^pin:/.test(o.areaManual || "") ? "· titik tepat" : "· masih perkiraan dari alamat"}</summary>
         <PinMap origin={org} stops={[{ lat: o.lat, lng: o.lng, title: o.recipient }]} height={220} label={`Peta ${o.recipient}`} />
         <button className="btn ghost sm" onClick={() => act.edit(o)}>Ubah titik</button></details>}
-    {q && <div className="meta">Ongkir {rp(q.price)}{q.distance?.value ? ` · ${(q.distance.value / 1000).toFixed(1)} km` : ""} · harga berlaku sampai {new Date(q.expires_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</div>}
-    <LinkLlm o={o} toast={toast} reload={reload} /></div>);
+    {q && <div className="meta">Ongkir {rp(q.price)}{q.distance?.value ? ` · ${(q.distance.value / 1000).toFixed(1)} km` : ""} · harga berlaku sampai {new Date(q.expires_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</div>}</div>);
 }
-// Sudah dipesan di aplikasi Lalamove: tempel Order ID -> status, foto bukti & WA ikut otomatis seperti pesanan dari Dispatch.
-function LinkLlm({ o, toast, reload }) {
-  const [id, setId] = useState(""), [busy, setBusy] = useState(false), [ch, setCh] = useState(null);
+// Dipesan di aplikasi Lalamove: cukup tempel Order ID -> link tracking diambil sendiri, status, foto bukti & WA ikut otomatis.
+// Link share saja tetap bisa disimpan, tapi statusnya manual (Lalamove tidak mengabari order dari aplikasi).
+function LinkLlm({ o, toast, reload, save }) {
+  const [v, setV] = useState(""), [busy, setBusy] = useState(false), [ch, setCh] = useState(null);
+  const id = v.trim(), isId = /^\d{8,}$/.test(id.replace(/[\s#-]/g, "")), isUrl = /^https:\/\/\S+$/.test(id);
   async function go(stop_id) {
+    if (!isId) return isUrl ? save(o, { ext_link: id }, "Link disimpan. Supaya status, foto & WA otomatis, tempel Order ID-nya (angka), bukan link.") : toast("Isi Order ID Lalamove (angka panjang) atau link yang diawali https://");
     setBusy(true);
     try {
       const r = await lalamove("link", { order_id: o.id, llm_id: id, ...(stop_id && { stop_id }) });
       if (r.choose) setCh(r.choose);
-      else { setCh(null); toast(`${o.recipient} terhubung ke Lalamove · ${LLM_STATUS[r.status] || r.status}. Status, foto & WA sekarang otomatis.`); reload(); }
+      else { setCh(null); setV(""); toast(`${o.recipient} terhubung ke Lalamove · ${LLM_STATUS[r.status] || r.status}. Status, foto & WA sekarang otomatis.`); reload(); }
     } catch (e) { toast(e.message); }
     setBusy(false);
   }
-  return (<details className="llm-map" open={/lalamove\.com/.test(o.link || "")}><summary>Sudah pesan di aplikasi Lalamove? Tempel Order ID</summary>
-    <div className="row"><input inputMode="numeric" aria-label={`Order ID Lalamove ${o.code}`} placeholder="Order ID, mis. 3632067605763957438" value={id} onChange={e => { setId(e.target.value); setCh(null); }} style={{ flex: 1, minWidth: 160 }} />
-      <button className="btn ghost sm" disabled={busy || id.replace(/\D/g, "").length < 8} onClick={() => go()}>{busy ? "Menghubungkan…" : "Hubungkan"}</button></div>
-    {ch && <label className="meta">Order ini berisi {ch.length} alamat. Pilih alamat untuk {o.recipient}:
+  return (<div style={{ marginTop: 6 }}>
+    <div className="row"><Pill s="pihak3">Lalamove</Pill>
+      <input aria-label={`Order ID Lalamove ${o.code}`} placeholder="Tempel Order ID Lalamove (angka)" value={v} onChange={e => { setV(e.target.value); setCh(null); }} style={{ flex: 1, minWidth: 160 }} />
+      <button className="btn ghost" disabled={busy || !id} onClick={() => go()}>{busy ? "Menghubungkan…" : isId ? "Hubungkan" : "Simpan"}</button></div>
+    {ch && <label className="meta" style={{ display: "block", marginTop: 6 }}>Order ini berisi {ch.length} alamat. Pilih alamat untuk {o.recipient}:
       <select style={{ display: "block", marginTop: 4, maxWidth: "100%" }} value="" disabled={busy} onChange={e => e.target.value && go(e.target.value)}><option value="">Pilih alamat…</option>
         {ch.map((x, i) => <option key={x.stop_id} value={x.stop_id}>{i + 1}. {x.name ? x.name + " · " : ""}{x.address.slice(0, 70)}{x.used ? ` (sudah dipakai ${x.used})` : ""}</option>)}</select></label>}
-    <div className="meta">Order ID = angka panjang di detail pesanan aplikasi Lalamove, bukan link share.</div></details>);
+    <div className="meta" style={{ marginTop: 4 }}>Pesan di aplikasi Lalamove? Cukup tempel <b>Order ID</b>-nya (angka di detail pesanan): link tracking, status, foto & WA otomatis.
+      {o.link && <> Link tersimpan: <a href={o.link} target="_blank" rel="noopener">buka</a> (status masih manual).</>}</div></div>);
 }
 
 function ExtRow({ o, save, toast, reload, act, org, checked, onCheck }) {
-  const [v, setV] = useState(o.link);
+  const [v, setV] = useState(o.link), llmLive = o.llm && !["CANCELED", "REJECTED", "EXPIRED"].includes(o.llm.status);
   return (<li>{onCheck ? <input type="checkbox" className="ext-chk" checked={checked} onChange={onCheck} aria-label={`Gabungkan ${o.recipient} ke 1 driver Lalamove`} /> : <span className="num" style={{ background: "var(--ext)" }}>↗</span>}<div><div className="addr">{o.recipient}</div><div className="meta">{o.address}</div>
-    <div className="row" style={{ marginTop: 6 }}><Pill s="pihak3">{VIA[o.via]}</Pill><input type="url" aria-label={`Link tracking ${o.code}`} placeholder={`Tempel link tracking ${VIA[o.via]}`} value={v} onChange={e => setV(e.target.value)} style={{ flex: 1, minWidth: 140 }} />
-      <button className="btn ghost" onClick={() => v && !/^https:\/\/\S+$/.test(v.trim()) ? toast("Link harus diawali https://") : save(o, { ext_link: v.trim() || null }, v.trim() ? "Link tracking disimpan" : "Link dihapus")}>Simpan</button></div>
+    {o.via === "lalamove" ? !llmLive && <LinkLlm o={o} toast={toast} reload={reload} save={save} /> : <div className="row" style={{ marginTop: 6 }}><Pill s="pihak3">{VIA[o.via]}</Pill><input type="url" aria-label={`Link tracking ${o.code}`} placeholder={`Tempel link tracking ${VIA[o.via]}`} value={v} onChange={e => setV(e.target.value)} style={{ flex: 1, minWidth: 140 }} />
+      <button className="btn ghost" onClick={() => v && !/^https:\/\/\S+$/.test(v.trim()) ? toast("Link harus diawali https://") : save(o, { ext_link: v.trim() || null }, v.trim() ? "Link tracking disimpan" : "Link dihapus")}>Simpan</button></div>}
     {!o.llm && !["jalan", "sampai", "gagal"].includes(o.ship) && <button className="btn ghost sm" style={{ marginTop: 6 }} onClick={() => act.edit(o)}>Edit pesanan</button>}
     {o.via === "lalamove" && <LalamoveBox o={o} toast={toast} reload={reload} org={org} act={act} />}</div><span /></li>);
 }
