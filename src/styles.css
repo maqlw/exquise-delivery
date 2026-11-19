@@ -507,3 +507,4 @@ ol.stops li:first-child{border-top:0}
 .cc .cc-move{margin-left:0;width:100%}
 @media (prefers-reduced-motion:reduce){.cc-toggle .chev{transition:none}.couriers{scroll-behavior:auto}}
 .couriers .cc-un{border:1.5px dashed var(--warn);background:var(--warn-soft)}
+.pager{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;margin-top:12px}.pager .meta{text-align:center}

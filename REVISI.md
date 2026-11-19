@@ -13,6 +13,7 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v032** | 19/11/2026 | Dispatch: daftar Pihak ketiga ditampilkan per 10 (tombol Sebelumnya/Berikutnya), yang belum selesai di atas, judul menampilkan jumlah yang belum selesai. Data pengiriman sebelum 19/11 dihapus untuk uji coba penuh. |
 | **v031** | 19/11/2026 | Saklar **Pembagian otomatis** di Pengaturan (default OFF). OFF: kurir & urutan alamat mengikuti Excel; alamat tanpa nama driver masuk kotak "Belum ada kurir" di Dispatch (tidak dibagi otomatis, tidak ikut dikirim sampai dipilih kurirnya). ON: perilaku lama (dibagi per arah & jarak). Ganti tanggal tidak lagi sempat menampilkan data tanggal sebelumnya. |
 | **v030** | 19/11/2026 | Upload Excel Matrix: kolom di sebelah WORDING (nama driver yang di-merge per kelompok) sekarang dibaca. Nama driver → alamat langsung masuk ke kurir itu di Dispatch (nama mirip ikut cocok, mis. IRFAN = IRPAN); "BATCH 2" → batch 2; "PICK UP OUTLET / LALAMOVE" → pick up kalau alamatnya pickup, selain itu Lalamove. Nama driver yang tidak ada di menu Kurir diberi peringatan. |
 | **v029** | 19/11/2026 | Ganti batch/outlet/tanggal di Data Pengiriman sekarang ikut memindahkan pesanan di Dispatch: pesanan yang belum dibawa kurir keluar dari rute lama dan muncul di batch baru; pilihan batch di form menang atas pindahan lama di Dispatch. Batch dikunci setelah pesanan dibawa kurir. Kurir tes AZIS (0877-9000-6465) & DELIVERY dihapus; alamat AZIS tes dipindah ke AZIS asli. |

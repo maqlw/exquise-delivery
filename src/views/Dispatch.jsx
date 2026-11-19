@@ -6,7 +6,7 @@ import { BATCH, VIA, status, hhmm, fmtKm, dmy, returnLabel } from "../lib/logic.
 import { updateOrder, sendRoutes, sendExtra, lalamove, reassignOrders } from "../lib/api.js";
 
 export default function Dispatch({ orders, origins, couriers, settings, P, date, ui, setUi, reload, toast, routes, positions, act, locked }) {
-  const [busy, setBusy] = useState(false), [sel, setSel] = useState(new Set()), [q, setQ] = useState(""), [shut, setShut] = useState({});
+  const [busy, setBusy] = useState(false), [sel, setSel] = useState(new Set()), [q, setQ] = useState(""), [shut, setShut] = useState({}), [pg, setPg] = useState(0);
   useEffect(() => { // tekan "/" untuk langsung mencari
     const f = e => { if (e.key === "/" && !/^(input|textarea|select)$/i.test(document.activeElement?.tagName || "")) { e.preventDefault(); document.querySelector(".dp-search input")?.focus(); } };
     addEventListener("keydown", f); return () => removeEventListener("keydown", f);
@@ -41,6 +41,9 @@ export default function Dispatch({ orders, origins, couriers, settings, P, date,
   const nHere = searching ? planOrders(oid, b).filter(hit).length + ext.filter(hit).length + pick.filter(hit).length : null;
   const elsewhere = searching ? Object.keys(origins).flatMap(x => [1, 2, 3].map(y => ({ x, y, n: planOrders(x, y).filter(hit).length }))).filter(e => e.n && (e.x !== oid || e.y !== b)) : [];
   const allShut = list.length > 0 && list.every(c => shut[c.id]);
+  // Pihak ketiga per 10, yang belum selesai di atas.
+  const PER = 10, fin = o => ["sampai", "gagal"].includes(o.ship) ? 1 : 0, extHit = ext.filter(hit).sort((x, y) => fin(x) - fin(y));
+  const pages = Math.ceil(extHit.length / PER), p = Math.min(pg, Math.max(0, pages - 1));
   const skip = n => !n || confirm(`${n} alamat belum ada kurir dan tidak ikut dikirim. Kirim yang sudah ada kurirnya?`);
   async function send() {
     if (!skip(B.un.length)) return;
@@ -117,10 +120,13 @@ export default function Dispatch({ orders, origins, couriers, settings, P, date,
         <button className="btn primary big" disabled={busy || !list.length || locked || !nAdd} onClick={sendAdd}>{busy ? "Mengirim…" : nAdd ? `Kirim ${nAdd} alamat tambahan ke kurir` : "Pilih kurirnya dulu di kotak Belum ada kurir"}</button></section>}
       <div className="row">{B.sent ? <><div className="banner ok" style={{ flex: 1 }}>Rute Batch {b} sudah dikirim ke kurir. Status berubah dari aksi kurir. Kalau kurir berhalangan, pindahkan alamat yang belum selesai lewat pilihan <b>Pindahkan</b> di kartunya.</div><a className="btn ghost" href="#lacak">Pantau di Lacak →</a></>
         : <button className="btn primary big" onClick={send} disabled={!nSend || busy || !list.length || locked}>{busy ? "Mengirim…" : `Kirim rute Batch ${b} ke kurir ${org.short}`}</button>}</div>
-      <section className="panel"><h2>Pihak ketiga · {ext.length}</h2><p className="note">Lalamove: pesan langsung dari sini supaya status, foto bukti & WhatsApp otomatis. Centang 2 pesanan Lalamove atau lebih dari outlet yang sama untuk <b>1 driver banyak alamat</b>. GoSend/Grab: pesan di aplikasinya lalu tempel link tracking.</p>
+      <section className="panel"><h2>Pihak ketiga · {ext.length}{ext.length > 0 && <span className="meta"> · {ext.filter(o => !fin(o)).length} belum selesai</span>}</h2><p className="note">Lalamove: pesan langsung dari sini supaya status, foto bukti & WhatsApp otomatis. Centang 2 pesanan Lalamove atau lebih dari outlet yang sama untuk <b>1 driver banyak alamat</b>. GoSend/Grab: pesan di aplikasinya lalu tempel link tracking.</p>
         {sel.size >= 2 && <LalamoveMulti list={ext.filter(o => sel.has(o.id))} origins={origins} toast={toast} reload={reload} done={() => setSel(new Set())} />}
-        {ext.length ? <ol className="stops">{ext.filter(hit).map(o => <ExtRow key={o.id} o={o} save={save} toast={toast} reload={reload} act={act} org={origins[o.origin]}
-          checked={sel.has(o.id)} onCheck={canMulti(o) ? () => { const n = new Set(sel); n.has(o.id) ? n.delete(o.id) : n.add(o.id); setSel(n); } : null} />)}</ol> : <p className="note">Belum ada.</p>}</section>
+        {ext.length ? <><ol className="stops">{extHit.slice(p * PER, p * PER + PER).map(o => <ExtRow key={o.id} o={o} save={save} toast={toast} reload={reload} act={act} org={origins[o.origin]}
+          checked={sel.has(o.id)} onCheck={canMulti(o) ? () => { const n = new Set(sel); n.has(o.id) ? n.delete(o.id) : n.add(o.id); setSel(n); } : null} />)}</ol>
+          {pages > 1 && <nav className="pager" aria-label="Halaman pihak ketiga"><button type="button" className="btn ghost sm" disabled={!p} onClick={() => setPg(p - 1)}>‹ Sebelumnya</button>
+            <span className="meta">{p * PER + 1}–{Math.min(extHit.length, (p + 1) * PER)} dari {extHit.length} · hal {p + 1}/{pages}</span>
+            <button type="button" className="btn ghost sm" disabled={p >= pages - 1} onClick={() => setPg(p + 1)}>Berikutnya ›</button></nav>}</> : <p className="note">Belum ada.</p>}</section>
       <section className="panel"><h2>Pick up · {pick.length}</h2>{pick.length ? <ol className="stops">{pick.filter(hit).map(o => <li key={o.id}><span className="num" style={{ background: "var(--muted)" }}>P</span><div><div className="addr">{o.recipient}</div><div className="meta">{o.address} · {o.item}</div></div><span /></li>)}</ol> : <p className="note">Tidak ada.</p>}</section>
       <section className="panel"><h2>Peta Batch {b} · {org.short}</h2>
         <MapSVG origin={org} routes={list.map(c => { const r = B.routes[c.id]; return { color: c.color, pts: r.seq, doneN: r.seq.filter(o => ["sampai", "gagal"].includes(o.ship)).length, pos: started(c.id) && positions[c.id] ? positions[c.id] : null }; })} />
