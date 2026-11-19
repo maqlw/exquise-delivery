@@ -13,6 +13,7 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v028** | 19/11/2026 | Dispatch: kurir berjejer ke samping (tombol ‹ ›, bisa diciutkan per kurir / semua, daftar digulir di dalam kolom); pencarian penerima/kode/alamat/No HP/item (tekan "/"), loncat ke batch/outlet lain bila hasil ada di sana; peta pindah ke bawah. |
 | **v027** | 18/11/2026 | Form Sampai: pilih dulu siapa yang menerima; kalau bukan penerima langsung, nama yang menerima wajib diisi (tidak lagi otomatis nama di pesanan). WA "sudah diterima oleh" menyebut hubungannya, mis. "Aldi (Satpam / resepsionis)". |
 | **v026** | 18/11/2026 | Kurir berhalangan: pindahkan alamat (satu-satu atau semua sisa) ke kurir lain setelah rute dikirim. Perbaikan: pesanan yang diganti ke pihak ketiga otomatis keluar dari rute kurir. HP kurir memperbarui rute tiap 30 detik. |
 | **v025** | 18/11/2026 | Pengaturan → Jasa kirim pihak ketiga: tambah / ubah nama / hapus jasa kirim (Borzo sudah ditambahkan), ikut terbaca dari kolom kiriman Excel; database tidak lagi membatasi 5 jasa kirim. |

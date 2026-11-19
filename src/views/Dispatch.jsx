@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
 import MapSVG from "../components/MapSVG.jsx";
 import PinMap from "../components/PinMap.jsx";
-import { Pill, Empty, StopInfo } from "../components/ui.jsx";
+import { Pill, Empty, StopInfo, Search } from "../components/ui.jsx";
 import { BATCH, VIA, status, hhmm, fmtKm, dmy, returnLabel } from "../lib/logic.js";
 import { updateOrder, sendRoutes, sendExtra, lalamove, reassignOrders } from "../lib/api.js";
 
 export default function Dispatch({ orders, origins, couriers, P, date, ui, setUi, reload, toast, routes, positions, act, locked }) {
-  const [busy, setBusy] = useState(false), [sel, setSel] = useState(new Set());
+  const [busy, setBusy] = useState(false), [sel, setSel] = useState(new Set()), [q, setQ] = useState(""), [shut, setShut] = useState({});
+  useEffect(() => { // tekan "/" untuk langsung mencari
+    const f = e => { if (e.key === "/" && !/^(input|textarea|select)$/i.test(document.activeElement?.tagName || "")) { e.preventDefault(); document.querySelector(".dp-search input")?.focus(); } };
+    addEventListener("keydown", f); return () => removeEventListener("keydown", f);
+  }, []);
   if (!orders.length) return <Empty title="Belum ada pengiriman" desc="Upload file Excel atau tambah pesanan manual dulu."><a className="btn primary" href="#upload">Ke Data pengiriman</a></Empty>;
   const oid = ui.origin, b = ui.batch, B = P[oid][b], org = origins[oid], list = couriers.filter(c => c.origin_id === oid && c.active);
   const rs = list.map(c => B.routes[c.id]), totalKm = rs.reduce((a, r) => a + r.km, 0), late = rs.reduce((a, r) => a + r.late, 0);
@@ -29,6 +33,13 @@ export default function Dispatch({ orders, origins, couriers, P, date, ui, setUi
   }
   const extOpts = Object.entries(VIA).filter(([k]) => k !== "internal" && k !== "pickup");
   const undone = o => !["sampai", "gagal"].includes(o.ship);
+  // Pencarian: semua kata harus cocok di nama, kode, alamat, item, No HP, atau pemesan.
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean), searching = words.length > 0;
+  const hit = o => !searching || words.every(w => [o.recipient, o.code, o.address, o.item, o.phone, o.sender, o.phoneSender].join(" ").toLowerCase().includes(w));
+  const planOrders = (x, y) => { const R = P[x][y]; return [...Object.values(R.routes), ...(R.extra ? Object.values(R.extra.routes) : [])].flatMap(r => r.seq); };
+  const nHere = searching ? planOrders(oid, b).filter(hit).length + ext.filter(hit).length + pick.filter(hit).length : null;
+  const elsewhere = searching ? Object.keys(origins).flatMap(x => [1, 2, 3].map(y => ({ x, y, n: planOrders(x, y).filter(hit).length }))).filter(e => e.n && (e.x !== oid || e.y !== b)) : [];
+  const allShut = list.length > 0 && list.every(c => shut[c.id]);
   async function send() {
     setBusy(true);
     try { await sendRoutes(date, oid, b, B.routes); await reload(); toast(`Rute Batch ${b} dikirim ke ${rs.filter(r => r.seq.length).length} kurir`); }
@@ -42,12 +53,24 @@ export default function Dispatch({ orders, origins, couriers, P, date, ui, setUi
     setBusy(false);
   }
   // Kartu per kurir; locked = rute sudah di HP kurir (tidak bisa dipindah/diedit).
-  const cards = (R, locked) => <div className="couriers">{list.map(c => { const r = R[c.id]; return (
-        <article className="cc" key={c.id}><div className="cc-h"><span className="dot" style={{ background: c.color }} /><b>{c.name}</b><span className="meta">{r.seq.length} alamat · {fmtKm(r.km)}{r.seq.length ? ` · selesai ${hhmm(r.end)}` : ""}</span>{r.late > 0 && <Pill s="late">{r.late} terlambat</Pill>}
+  const scroll = (e, d) => e.currentTarget.closest(".board").querySelector(".couriers").scrollBy({ left: d * 360, behavior: "smooth" });
+  const cards = (R, locked) => <div className="board">
+    <div className="board-bar"><span className="meta">{list.length} kurir{list.length > 2 ? " · geser ke samping untuk melihat semua" : ""}</span>
+      {!searching && list.length > 0 && <button type="button" className="btn ghost sm" onClick={() => setShut(Object.fromEntries(list.map(c => [c.id, !allShut])))}>{allShut ? "Buka semua" : "Ciutkan semua"}</button>}
+      <button type="button" className="btn ghost sm board-nav" aria-label="Geser daftar kurir ke kiri" onClick={e => scroll(e, -1)}>‹</button>
+      <button type="button" className="btn ghost sm board-nav" aria-label="Geser daftar kurir ke kanan" onClick={e => scroll(e, 1)}>›</button></div>
+    <div className="couriers">{list.map(c => { const r = R[c.id], shown = r.seq.map((o, i) => [o, i]).filter(([o]) => hit(o)), isShut = !!shut[c.id] && !searching;
+      if (searching && !shown.length) return null;
+      return (
+        <article className={`cc${isShut ? " shut" : ""}`} key={c.id}><div className="cc-h">
+          <button type="button" className="cc-toggle" aria-expanded={!isShut} onClick={() => setShut({ ...shut, [c.id]: !shut[c.id] })}>
+            <span className="dot" style={{ background: c.color }} /><b>{c.name}</b><span className="meta">{r.seq.length} alamat · {fmtKm(r.km)}{r.seq.length ? ` · selesai ${hhmm(r.end)}` : ""}</span>{r.late > 0 && <Pill s="late">{r.late} terlambat</Pill>}
+            {searching && <Pill s="info">{shown.length} cocok</Pill>}
+            <svg className="chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></button>
           {locked && (x => x && <Pill s={x[0]}>{x[1]}</Pill>)(returnLabel(routes.find(x => x.courier_id === c.id && x.batch === b)))}
           {locked && r.seq.filter(undone).length > 0 && <select className="cc-move" aria-label={`Pindahkan semua alamat ${c.name} yang belum selesai`} value="" onChange={e => { const v = e.target.value; if (v && confirm(`Pindahkan ${r.seq.filter(undone).length} alamat ${c.name} yang belum selesai ke ${couriers.find(x => x.id === v).name}?`)) reassign(r.seq.filter(undone).map(o => o.id), v, `Semua sisa ${c.name}`); }}>
             <option value="">Kurir berhalangan? Pindahkan semua sisa…</option>{list.filter(x => x.id !== c.id).map(x => <option key={x.id} value={x.id}>Ke {x.name}</option>)}</select>}</div>
-          {r.seq.length ? <ol className="stops">{r.seq.map((o, i) => { const e = r.eta[o.code], isLate = o.deadline != null && e > o.deadline; return (
+          {isShut ? null : r.seq.length ? <ol className="stops cc-body">{shown.map(([o, i]) => { const e = r.eta[o.code], isLate = o.deadline != null && e > o.deadline; return (
             <li key={o.id}><span className="num" style={{ background: isLate ? "var(--bad)" : c.color }}>{i + 1}</span>
               <div><StopInfo o={o} />
                 {locked ? <><Pill s={status(o)} />{undone(o) && <select aria-label={`Pindahkan ${o.code}`} style={{ marginTop: 4, marginLeft: 6, fontSize: 13 }} value="" onChange={e => e.target.value && move(o, e.target.value)}>
@@ -57,7 +80,7 @@ export default function Dispatch({ orders, origins, couriers, P, date, ui, setUi
                   {[1, 2, 3].filter(x => x !== b).map(x => <option key={x} value={"b:" + x}>Ke Batch {x}</option>)}{extOpts.map(([k, t]) => <option key={k} value={"v:" + k}>Ke {t}</option>)}</select>}
                 {!locked && <button className="btn ghost sm" style={{ marginLeft: 6 }} onClick={() => act.edit(o)}>Edit</button>}</div>
               <div className="eta">{hhmm(e)}{o.deadline != null && <Pill s={isLate ? "late" : "ok"}>batas {hhmm(o.deadline)}</Pill>}</div></li>); })}</ol>
-            : <p className="note">Tidak ada alamat di batch ini.</p>}</article>); })}</div>;
+            : <p className="note">Tidak ada alamat di batch ini.</p>}</article>); })}</div></div>;
   const started = id => routes.some(r => r.courier_id === id && r.batch === b && r.started_at && !r.finished_at);
   return (<>
     <h1>Susun pengiriman {dmy(date)}</h1><p className="sub">Sistem mengusulkan pembagian kurir dan urutan antar per lokasi asal dan batch. Pindahkan alamat kalau perlu, lalu kirim rute ke kurir.</p>
@@ -65,12 +88,17 @@ export default function Dispatch({ orders, origins, couriers, P, date, ui, setUi
       {Object.values(origins).map(x => <button key={x.id} aria-pressed={x.id === oid} onClick={() => setUi({ ...ui, origin: x.id })}>{x.short} <small>{[1, 2, 3].reduce((a, y) => a + P[x.id][y].count, 0)}</small></button>)}</div>
     <div className="tabs" role="group" aria-label="Batch" style={{ marginTop: 12 }}>
       {[1, 2, 3].map(x => <button key={x} aria-pressed={x === b} onClick={() => setUi({ ...ui, batch: x })}>Batch {x}{P[oid][x].sent ? " ✓" : ""}{P[oid][x].extra && <span className="badge-add">+{P[oid][x].extra.count} tambahan</span>}<small>{BATCH[x].label} · {P[oid][x].count} alamat</small></button>)}</div>
-    <div className="grid swap-r" key={oid + b}><div className="stack">
+    <div className="dp-search"><Search value={q} onChange={setQ} placeholder="Cari penerima, kode, alamat, No HP, item…" label="Cari di Dispatch" count={nHere} />
+      {elsewhere.length > 0 && <div className="dp-else"><span className="meta">Juga ditemukan di:</span>{elsewhere.map(e => <button type="button" key={e.x + e.y} className="chip" onClick={() => setUi({ ...ui, origin: e.x, batch: e.y })}>{origins[e.x].short} · Batch {e.y}<b>{e.n}</b></button>)}</div>}
+      {searching && nHere === 0 && !elsewhere.length && <p className="note">Tidak ada yang cocok di tanggal ini. Pesanan yang belum punya titik peta ada di <a href="#upload">Data pengiriman</a>.</p>}</div>
+    <div className="stack swap-r dp-main" key={oid + b}>
+      {!searching && <>
       <div className="kpis"><div className="kpi"><span>Alamat</span><b>{B.count}</b></div><div className="kpi"><span>Total jarak</span><b>{fmtKm(totalKm)}</b></div><div className="kpi"><span>Selesai paling akhir</span><b>{B.count ? hhmm(end) : "–"}</b></div><div className={`kpi ${late ? "bad" : "ok"}`}><span>Lewat request jam</span><b>{late}</b></div></div>
       {!list.length && <div className="banner warn">Belum ada kurir aktif di {org.short}. Tambahkan di menu Kurir.</div>}
       {cek > 0 && <div className="banner warn">{cek} alamat dari {org.short} belum punya titik peta dan belum masuk rute. <a href="#upload">Perbaiki di Data pengiriman</a>.</div>}
       {late > 0 && <div className="banner bad">{late} alamat diperkirakan lewat request jam. Pindahkan ke kurir lain atau kirim lewat pihak ketiga.</div>}
       {end > BATCH[b].end && <div className="banner warn">Rute selesai {hhmm(end)}, lewat jam akhir Batch {b} ({hhmm(BATCH[b].end)}).</div>}
+      </>}
       {cards(B.routes, B.sent)}
       {B.extra && <section className="panel extra"><h2>Tambahan Batch {b} · {B.extra.count} alamat</h2>
         <p className="note">Masuk setelah rute Batch {b} dikirim. Kurir mengambil kuenya di {org.short}, lalu alamat ini muncul di HP kurir setelah rutenya yang sekarang.</p>
@@ -80,11 +108,10 @@ export default function Dispatch({ orders, origins, couriers, P, date, ui, setUi
         : <button className="btn primary big" onClick={send} disabled={!B.count || busy || !list.length || locked}>{busy ? "Mengirim…" : `Kirim rute Batch ${b} ke kurir ${org.short}`}</button>}</div>
       <section className="panel"><h2>Pihak ketiga · {ext.length}</h2><p className="note">Lalamove: pesan langsung dari sini supaya status, foto bukti & WhatsApp otomatis. Centang 2 pesanan Lalamove atau lebih dari outlet yang sama untuk <b>1 driver banyak alamat</b>. GoSend/Grab: pesan di aplikasinya lalu tempel link tracking.</p>
         {sel.size >= 2 && <LalamoveMulti list={ext.filter(o => sel.has(o.id))} origins={origins} toast={toast} reload={reload} done={() => setSel(new Set())} />}
-        {ext.length ? <ol className="stops">{ext.map(o => <ExtRow key={o.id} o={o} save={save} toast={toast} reload={reload} act={act} org={origins[o.origin]}
+        {ext.length ? <ol className="stops">{ext.filter(hit).map(o => <ExtRow key={o.id} o={o} save={save} toast={toast} reload={reload} act={act} org={origins[o.origin]}
           checked={sel.has(o.id)} onCheck={canMulti(o) ? () => { const n = new Set(sel); n.has(o.id) ? n.delete(o.id) : n.add(o.id); setSel(n); } : null} />)}</ol> : <p className="note">Belum ada.</p>}</section>
-      <section className="panel"><h2>Pick up · {pick.length}</h2>{pick.length ? <ol className="stops">{pick.map(o => <li key={o.id}><span className="num" style={{ background: "var(--muted)" }}>P</span><div><div className="addr">{o.recipient}</div><div className="meta">{o.address} · {o.item}</div></div><span /></li>)}</ol> : <p className="note">Tidak ada.</p>}</section>
-    </div>
-      <section className="panel sticky-map"><h2>Peta Batch {b} · {org.short}</h2>
+      <section className="panel"><h2>Pick up · {pick.length}</h2>{pick.length ? <ol className="stops">{pick.filter(hit).map(o => <li key={o.id}><span className="num" style={{ background: "var(--muted)" }}>P</span><div><div className="addr">{o.recipient}</div><div className="meta">{o.address} · {o.item}</div></div><span /></li>)}</ol> : <p className="note">Tidak ada.</p>}</section>
+      <section className="panel"><h2>Peta Batch {b} · {org.short}</h2>
         <MapSVG origin={org} routes={list.map(c => { const r = B.routes[c.id]; return { color: c.color, pts: r.seq, doneN: r.seq.filter(o => ["sampai", "gagal"].includes(o.ship)).length, pos: started(c.id) && positions[c.id] ? positions[c.id] : null }; })} />
         <div className="legend"><span>■ {org.short}</span>{list.map(c => <span key={c.id}><span className="dot" style={{ background: c.color }} /> {c.name}</span>)}<span>Kotak grid ≈ 1 km</span></div>
         <p className="note">Titik alamat masih perkiraan per area. Setelah Google Maps aktif, titik dan waktu tempuh memakai data Google.</p></section></div>
