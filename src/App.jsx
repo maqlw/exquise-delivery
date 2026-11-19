@@ -16,6 +16,7 @@ import CourierScreen from "./views/CourierScreen.jsx";
 import TrackPublic from "./views/TrackPublic.jsx";
 import TrackGroup from "./views/TrackGroup.jsx";
 import CekPage from "./views/CekPage.jsx";
+import InternalTrack from "./views/InternalTrack.jsx";
 import { ChangePassword, ROLE } from "./views/Accounts.jsx";
 import Report from "./views/Report.jsx";
 import Settings from "./views/Settings.jsx";
@@ -40,9 +41,10 @@ const useHash = () => { const [h, setH] = useState(location.hash.slice(1)); useE
 export default function App() {
   const track = location.pathname.match(/^\/(?:lacak|l)\/([A-Za-z0-9]+)/), grp = location.pathname.match(/^\/g\/([A-Za-z0-9]+)/);
   const invoice = location.pathname.match(/^\/invoice\/([A-Za-z0-9]+)/), provider = /^\/penyedia\/?$/.test(location.pathname);
+  const pantau = location.pathname.match(/^\/pantau\/([a-f0-9]{32})\/?$/); // pantau internal tanpa login
   const [session, setSession] = useState(undefined), [role, setRole] = useState(null), [me, setMe] = useState(null);
   useEffect(() => {
-    if (track || grp || invoice || provider) return;
+    if (track || grp || invoice || provider || pantau) return;
     api.sb.auth.getSession().then(({ data }) => setSession(data.session));
     const { data } = api.sb.auth.onAuthStateChange((_e, s) => setSession(s));
     return () => data.subscription.unsubscribe();
@@ -57,6 +59,7 @@ export default function App() {
     })();
   }, [session?.user?.id]);
   if (track) return <TrackPublic token={track[1]} />;
+  if (pantau) return <InternalTrack token={pantau[1]} />;
   if (invoice) return <InvoicePage token={invoice[1]} />;
   if (provider) return <ProviderApp />;
   if (grp) return <TrackGroup token={grp[1]} />;
@@ -78,6 +81,9 @@ function Admin({ email, me }) {
   const order = nav.map(n => n[0]), prev = useRef(view), dir = order.indexOf(view) >= order.indexOf(prev.current) ? "swap-r" : "swap-l";
   useEffect(() => { prev.current = view; }, [view]);
   const [master, setMaster] = useState(null), [day, setDay] = useState(null), [date, setDate] = useState(null), [dates, setDates] = useState([]);
+  // Menu samping bisa dilipat jadi ikon saja (laptop), diingat per browser.
+  const [mini, setMini] = useState(() => { try { return localStorage.getItem("side-mini") === "1"; } catch { return false; } });
+  useEffect(() => { try { localStorage.setItem("side-mini", mini ? "1" : "0"); } catch { /* mode privat */ } requestAnimationFrame(() => dispatchEvent(new Event("resize"))); }, [mini]);
   const [ui, setUi] = useState({ origin: "ck", batch: 1, filter: "all", lacak: null, q: "" });
   const [modal, setModal] = useState(null), [wa, setWa] = useState(null), [svc, setSvc] = useState(null);
   useEffect(() => { api.serviceStatus().then(setSvc).catch(() => {}); }, []); // status langganan: aktif / tenggang / nonaktif
@@ -128,9 +134,11 @@ function Admin({ email, me }) {
   const ctx = { ...master, ...day, me, wa, setWa, reloadWa, svc, locked: svc?.status === "nonaktif", P, date, dates, ui, setUi, reload, toast, act, courier, setDate: d => reload(d) };
 
   return (
-    <div className="frame"><div className="frame-inner">
+    <div className="frame"><div className={`frame-inner${mini ? " side-mini" : ""}`}>
       <aside className="side" aria-label="Menu">
-        <div className="brand"><Logo light h={76} /><button className="btn sm mobile-out" onClick={() => api.sb.auth.signOut()}>Keluar</button></div>
+        <div className="brand"><Logo light h={76} /><button className="btn sm mobile-out" onClick={() => api.sb.auth.signOut()}>Keluar</button>
+          <button type="button" className="side-toggle" aria-expanded={!mini} aria-label={mini ? "Tampilkan menu samping" : "Sembunyikan menu samping"} title={mini ? "Tampilkan menu" : "Sembunyikan menu"} onClick={() => setMini(!mini)}>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6" /></svg></button></div>
         <div className="ws"><span className="ws-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 3 7v2h18V7l-9-5Zm-7 9v8H3v2h18v-2h-2v-8h-2v8h-3v-8h-2v8H8v-8H5Z" /></svg></span>
           <div style={{ minWidth: 0, flex: 1 }}><label htmlFor="ws-origin">Lokasi asal</label>
             <select id="ws-origin" value={ui.origin} onChange={e => setUi({ ...ui, origin: e.target.value })}>{Object.values(master.origins).map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></div></div>

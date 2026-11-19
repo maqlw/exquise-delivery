@@ -508,3 +508,16 @@ ol.stops li:first-child{border-top:0}
 @media (prefers-reduced-motion:reduce){.cc-toggle .chev{transition:none}.couriers{scroll-behavior:auto}}
 .couriers .cc-un{border:1.5px dashed var(--warn);background:var(--warn-soft)}
 .pager{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;margin-top:12px}.pager .meta{text-align:center}
+/* Menu samping dilipat (laptop): ikon saja */
+.side-toggle{all:unset;box-sizing:border-box;cursor:pointer;width:30px;height:30px;border-radius:10px;display:grid;place-items:center;color:#aab8ae;background:var(--side-2);border:1px solid var(--side-line);flex:none;margin-left:auto}
+.side-toggle:hover{color:#fff}.side-toggle:focus-visible{outline:2px solid var(--accent-hi);outline-offset:2px}.side-toggle svg{transition:transform .2s}
+@media (min-width:901px){
+.frame-inner.side-mini .side{width:64px;padding:14px 6px 8px;align-items:stretch}
+.frame-inner.side-mini .side .brand{justify-content:center;padding:2px 0}
+.frame-inner.side-mini .side .brand img,.frame-inner.side-mini .ws,.frame-inner.side-mini .navlbl,.frame-inner.side-mini .side nav a .t,.frame-inner.side-mini .who>div,.frame-inner.side-mini .who .btn{display:none}
+.frame-inner.side-mini .side-toggle{margin:0}.frame-inner.side-mini .side-toggle svg{transform:rotate(180deg)}
+.frame-inner.side-mini .side nav a{padding:8px;justify-content:center}
+.frame-inner.side-mini .side nav a .badge{position:absolute;top:0;right:0;margin:0;padding:0 5px;font-size:10px}
+.frame-inner.side-mini .who{padding:12px 0 4px;justify-content:center}
+}
+@media (max-width:900px){.side-toggle{display:none}}

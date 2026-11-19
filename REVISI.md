@@ -13,6 +13,7 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v036** | 19/11/2026 | Menu samping bisa dilipat jadi ikon saja (tombol ‹ di atas menu, laptop; diingat per browser) supaya Data pengiriman/Dispatch/Lacak lebih lega. **Link pantau internal** tanpa login (/pantau/…): dibuat/diganti/dimatikan di Pengaturan oleh pemilik/admin, isinya halaman Lacak hanya-lihat per tanggal, diperbarui tiap 1 menit, No HP pelanggan disamarkan. |
 | **v035** | 19/11/2026 | Pesanan Lalamove di Dispatch cukup 1 kolom: tempel **Order ID** → link tracking diambil sendiri dari Lalamove, status/foto/WA otomatis (tidak perlu tempel link lagi). Link share tetap bisa disimpan, tapi statusnya manual. Dicek: Lalamove tidak mengirim kabar untuk order dari aplikasi, jadi Order ID tidak bisa ditebak dari link share. |
 | **v034** | 19/11/2026 | Lalamove dari aplikasi: di Dispatch ada kotak "Tempel Order ID". Setelah dihubungkan, status, driver, foto bukti & WA otomatis seperti pesanan dari tombol Dispatch (order berisi beberapa alamat: dicocokkan lewat No HP penerima atau admin pilih alamatnya). Pesanan yang sudah ditandai Sampai manual ikut dapat foto bukti tanpa WA ulang. Pengecekan otomatis tiap 3 menit sebagai cadangan kabar dari Lalamove. |
 | **v033** | 19/11/2026 | Fungsi Lalamove: cek baca-saja Order ID (untuk memastikan order dari aplikasi Lalamove bisa dibaca API). Hasil: 2 order dari aplikasi terbaca → API terhubung ke akun Lalamove yang sama. |

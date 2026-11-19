@@ -14,11 +14,11 @@ function courierInfo(P, couriers, routes, o) {
 }
 
 function Detail({ o, ctx }) {
-  const { P, couriers, routes, positions, origins, toast, act, setUi, ui } = ctx;
+  const { P, couriers, routes, positions, origins, toast, act, setUi, ui, readOnly } = ctx; // readOnly = pantau internal tanpa login
   const [hist, setHist] = useState([]), [wa, setWa] = useState([]);
-  useEffect(() => { addressHistory(o.id).then(setHist).catch(() => {}); waLogs(o.id).then(setWa).catch(() => {}); }, [o.id, o.ship]);
+  useEffect(() => { if (readOnly) return; addressHistory(o.id).then(setHist).catch(() => {}); waLogs(o.id).then(setWa).catch(() => {}); }, [o.id, o.ship]);
   const [grp, setGrp] = useState(null); // link grup kalau pemesan ini sudah jadi pesanan grup
-  useEffect(() => { setGrp(null); if (o.phoneSender) sb.from("order_groups").select("token").eq("sender_phone", o.phoneSender).eq("ship_date", o.ymd).maybeSingle().then(({ data }) => data && setGrp(`${SITE}/g/${data.token}`)); }, [o.id]);
+  useEffect(() => { setGrp(null); if (o.phoneSender && !readOnly) sb.from("order_groups").select("token").eq("sender_phone", o.phoneSender).eq("ship_date", o.ymd).maybeSingle().then(({ data }) => data && setGrp(`${SITE}/g/${data.token}`)); }, [o.id]);
   const s = status(o), info = courierInfo(P, couriers, routes, o), started = info.route?.started_at && !info.route?.finished_at, pos = started ? positions[info.c.id] : null;
   let eta = info.r ? info.r.eta[o.code] : null, ahead = 0;
   if (s === "jalan" && pos) { let m = 0, p = pos;
@@ -44,7 +44,7 @@ function Detail({ o, ctx }) {
         : s === "sampai" ? <div className="etabig" style={{ color: "var(--ok)" }}>Sampai</div> : s === "gagal" ? <div className="etabig" style={{ color: "var(--bad)" }}>Gagal kirim</div>
         : <div className="etabig">{eta != null ? hhmm(eta) : "–"} <small>rencana tiba</small></div>}
       <Timeline steps={steps} />
-      <div className="row"><button className="btn primary sm" onClick={() => act.update(o)}>Update</button><button className="btn ghost sm" onClick={() => act.edit(o)}>Edit</button></div></section>
+      {!readOnly && <div className="row"><button className="btn primary sm" onClick={() => act.update(o)}>Update</button><button className="btn ghost sm" onClick={() => act.edit(o)}>Edit</button></div>}</section>
     <section className="panel"><h2>Informasi pesanan</h2><dl className="info">{info2.map(([k, v]) => [<dt key={k + "t"}>{k}</dt>, <dd key={k + "d"}>{v}</dd>])}</dl>
       {o.proof && <div><div className="lbl">Foto bukti terima</div><a href={o.proof} target="_blank" rel="noopener">{o.archived ? "Buka arsip di Google Drive ↗" : <img className="proof" src={o.proof} alt="Foto bukti terima" />}</a></div>}
       <div><div className="lbl">Link lacak</div><div className="linkbox"><code>{link}</code><button className="btn ghost sm" onClick={() => copy(link, toast)}>Salin link</button></div>
@@ -61,7 +61,7 @@ function Detail({ o, ctx }) {
 
 export default function Lacak(ctx) {
   const { orders, P, couriers, routes, ui, setUi } = ctx;
-  if (!orders.length) return <Empty title="Belum ada pengiriman" desc="Upload file Excel atau tambah pesanan manual dulu."><a className="btn primary" href="#upload">Ke Data pengiriman</a></Empty>;
+  if (!orders.length) return <Empty title="Belum ada pengiriman" desc={ctx.readOnly ? "Belum ada pesanan di tanggal ini." : "Upload file Excel atau tambah pesanan manual dulu."}>{!ctx.readOnly && <a className="btn primary" href="#upload">Ke Data pengiriman</a>}</Empty>;
   const sel = orders.find(o => o.id === ui.lacak), q = ui.q.toLowerCase();
   const rows = orders.filter(o => !q || (o.code + " " + o.recipient + " " + o.sender + " " + (o.phone || "")).toLowerCase().includes(q));
   return (<>

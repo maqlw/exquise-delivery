@@ -23,6 +23,7 @@ export default function Settings({ origins, settings, orders, reload, toast, wa,
     <h1>Pengaturan</h1><p className="sub">Akun, lokasi asal, kata-kata WhatsApp, perkiraan waktu tempuh, dan alamat langganan.</p>
     <div className="stack" style={{ marginTop: 16 }}>
       <Accounts me={me} toast={toast} />
+      <InternalLink toast={toast} />
       {me.role === "pemilik" ? <Gateway wa={wa} setWa={setWa} reloadWa={reloadWa} min={settings.wa_alert?.min_quota ?? 100} reload={reload} toast={toast} />
         : <section className="panel"><h2>WhatsApp Gateway</h2><p className="note">Ganti token & sambung ulang WhatsApp hanya bisa oleh Pemilik. Status kuota tetap terlihat di Dashboard.</p></section>}
       <Origins key={Object.keys(origins).join()} origins={origins} reload={reload} toast={toast} />
@@ -154,6 +155,24 @@ function GroupMin({ value, reload, toast }) {
     <p className="note">Kalau 1 No HP pemesan punya sebanyak ini penerima atau lebih di tanggal kirim yang sama, pemesan cukup dapat 2 WhatsApp: saat kiriman pertama berangkat & saat semua selesai, dengan 1 link untuk memantau semua penerima. Penerima tetap dapat WhatsApp masing-masing. Gagal kirim tetap langsung dikabarkan.</p>
     <div className="row"><Field id="grp-min" label="Minimal jumlah penerima"><input id="grp-min" type="number" min="2" max="100" value={v} onChange={e => setV(e.target.value)} /></Field>
       <button className="btn primary" style={{ alignSelf: "flex-end" }} onClick={save}>Simpan</button></div></section>);
+}
+
+// Link pantau internal: lihat status & posisi pesanan tanpa login. Token acak, bisa diganti/dimatikan kapan saja.
+function InternalLink({ toast }) {
+  const [t, setT] = useState(undefined), [busy, setBusy] = useState(false);
+  async function run(a) {
+    setBusy(true); const { data, error } = await sb.rpc("internal_link", { p_action: a }); setBusy(false);
+    if (error) return toast("Gagal: " + error.message);
+    setT(data ?? null); if (a !== "get") toast(a === "new" ? "Link pantau baru dibuat. Link lama tidak berlaku lagi." : "Link pantau dimatikan");
+  }
+  useEffect(() => { run("get"); }, []);
+  const url = t ? `${location.origin}/pantau/${t}` : null;
+  return (<section className="panel"><h2>Link pantau internal</h2>
+    <p className="note">Untuk tim internal melihat status & posisi pesanan <b>tanpa login</b> (hanya lihat, No HP pelanggan disamarkan). Siapa pun yang memegang link ini bisa membukanya, jadi bagikan hanya ke tim. Kalau bocor, klik <b>Buat link baru</b>: link lama langsung tidak berlaku.</p>
+    {t === undefined ? <p className="note">Memuat…</p> : url ? <div className="linkbox"><code>{url}</code><button className="btn ghost sm" onClick={() => navigator.clipboard?.writeText(url).then(() => toast("Link disalin"), () => toast("Salin manual: " + url))}>Salin link</button></div>
+      : <p className="note">Belum ada link aktif.</p>}
+    <div className="row" style={{ marginTop: 8 }}><button className="btn primary sm" disabled={busy} onClick={() => (!t || confirm("Buat link baru? Link lama langsung tidak berlaku.")) && run("new")}>{t ? "Buat link baru" : "Buat link"}</button>
+      {t && <button className="btn ghost sm danger" disabled={busy} onClick={() => confirm("Matikan link pantau? Tim tidak bisa membukanya sampai dibuat link baru.") && run("off")}>Matikan</button>}</div></section>);
 }
 
 function Toggle({ title, note, value, save, reload, toast }) {
