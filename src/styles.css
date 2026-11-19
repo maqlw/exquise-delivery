@@ -506,3 +506,4 @@ ol.stops li:first-child{border-top:0}
 .cc-body{max-height:min(60vh,560px);overflow-y:auto;overscroll-behavior:contain;padding-right:4px}
 .cc .cc-move{margin-left:0;width:100%}
 @media (prefers-reduced-motion:reduce){.cc-toggle .chev{transition:none}.couriers{scroll-behavior:auto}}
+.couriers .cc-un{border:1.5px dashed var(--warn);background:var(--warn-soft)}

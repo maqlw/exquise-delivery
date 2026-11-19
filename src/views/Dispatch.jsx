@@ -5,14 +5,15 @@ import { Pill, Empty, StopInfo, Search } from "../components/ui.jsx";
 import { BATCH, VIA, status, hhmm, fmtKm, dmy, returnLabel } from "../lib/logic.js";
 import { updateOrder, sendRoutes, sendExtra, lalamove, reassignOrders } from "../lib/api.js";
 
-export default function Dispatch({ orders, origins, couriers, P, date, ui, setUi, reload, toast, routes, positions, act, locked }) {
+export default function Dispatch({ orders, origins, couriers, settings, P, date, ui, setUi, reload, toast, routes, positions, act, locked }) {
   const [busy, setBusy] = useState(false), [sel, setSel] = useState(new Set()), [q, setQ] = useState(""), [shut, setShut] = useState({});
   useEffect(() => { // tekan "/" untuk langsung mencari
     const f = e => { if (e.key === "/" && !/^(input|textarea|select)$/i.test(document.activeElement?.tagName || "")) { e.preventDefault(); document.querySelector(".dp-search input")?.focus(); } };
     addEventListener("keydown", f); return () => removeEventListener("keydown", f);
   }, []);
   if (!orders.length) return <Empty title="Belum ada pengiriman" desc="Upload file Excel atau tambah pesanan manual dulu."><a className="btn primary" href="#upload">Ke Data pengiriman</a></Empty>;
-  const oid = ui.origin, b = ui.batch, B = P[oid][b], org = origins[oid], list = couriers.filter(c => c.origin_id === oid && c.active);
+  const oid = ui.origin, b = ui.batch, B = P[oid][b], org = origins[oid], list = couriers.filter(c => c.origin_id === oid && c.active), auto = settings?.auto_dispatch?.on === true;
+  const nSend = B.count - B.un.length, nAdd = B.extra ? B.extra.count - B.extra.un.length : 0;
   const rs = list.map(c => B.routes[c.id]), totalKm = rs.reduce((a, r) => a + r.km, 0), late = rs.reduce((a, r) => a + r.late, 0);
   const end = Math.max(BATCH[b].start, ...rs.filter(r => r.seq.length).map(r => r.end));
   const cek = orders.filter(o => status(o) === "cek" && o.origin === oid).length, ext = orders.filter(o => status(o) === "pihak3" || (o.via !== "internal" && o.via !== "pickup"));
@@ -21,7 +22,7 @@ export default function Dispatch({ orders, origins, couriers, P, date, ui, setUi
   function move(o, v) {
     const [k, x] = v.split(":");
     if (k === "c") save(o, { assigned_courier: x, batch_forced: b }, `${o.recipient} dipindah ke ${couriers.find(c => c.id === x).name}`);
-    if (k === "b") save(o, { batch_forced: +x, assigned_courier: null }, `${o.recipient} dipindah ke Batch ${x}`);
+    if (k === "b") save(o, { batch_forced: +x, ...(auto && { assigned_courier: null }) }, `${o.recipient} dipindah ke Batch ${x}`); // OFF: kurirnya ikut pindah batch
     if (k === "v") save(o, { via: x }, `${o.recipient} dikirim lewat ${VIA[x]}${B.sent ? ", dicabut dari rute kurir" : ""}`);
     if (k === "r") reassign([o.id], x, o.recipient);
   }
@@ -36,30 +37,41 @@ export default function Dispatch({ orders, origins, couriers, P, date, ui, setUi
   // Pencarian: semua kata harus cocok di nama, kode, alamat, item, No HP, atau pemesan.
   const words = q.toLowerCase().split(/\s+/).filter(Boolean), searching = words.length > 0;
   const hit = o => !searching || words.every(w => [o.recipient, o.code, o.address, o.item, o.phone, o.sender, o.phoneSender].join(" ").toLowerCase().includes(w));
-  const planOrders = (x, y) => { const R = P[x][y]; return [...Object.values(R.routes), ...(R.extra ? Object.values(R.extra.routes) : [])].flatMap(r => r.seq); };
+  const planOrders = (x, y) => { const R = P[x][y]; return [...Object.values(R.routes), ...(R.extra ? Object.values(R.extra.routes) : [])].flatMap(r => r.seq).concat(R.un, R.extra?.un || []); };
   const nHere = searching ? planOrders(oid, b).filter(hit).length + ext.filter(hit).length + pick.filter(hit).length : null;
   const elsewhere = searching ? Object.keys(origins).flatMap(x => [1, 2, 3].map(y => ({ x, y, n: planOrders(x, y).filter(hit).length }))).filter(e => e.n && (e.x !== oid || e.y !== b)) : [];
   const allShut = list.length > 0 && list.every(c => shut[c.id]);
+  const skip = n => !n || confirm(`${n} alamat belum ada kurir dan tidak ikut dikirim. Kirim yang sudah ada kurirnya?`);
   async function send() {
+    if (!skip(B.un.length)) return;
     setBusy(true);
     try { await sendRoutes(date, oid, b, B.routes); await reload(); toast(`Rute Batch ${b} dikirim ke ${rs.filter(r => r.seq.length).length} kurir`); }
     catch (e) { toast("Gagal mengirim rute: " + e.message); }
     setBusy(false);
   }
   async function sendAdd() {
+    if (!skip(B.extra.un.length)) return;
     setBusy(true);
-    try { const n = B.extra.count; await sendExtra(date, oid, b, B.extra.routes); await reload(); toast(`${n} alamat tambahan Batch ${b} dikirim ke HP kurir`); }
+    try { const n = nAdd; await sendExtra(date, oid, b, B.extra.routes); await reload(); toast(`${n} alamat tambahan Batch ${b} dikirim ke HP kurir`); }
     catch (e) { toast("Gagal mengirim tambahan: " + e.message); }
     setBusy(false);
   }
-  // Kartu per kurir; locked = rute sudah di HP kurir (tidak bisa dipindah/diedit).
+  const moveSel = (o, cid, label = "Pindahkan…") => <select aria-label={`${label.replace("…", "")} ${o.code}`} style={{ marginTop: 4, fontSize: 13 }} value="" onChange={e => e.target.value && move(o, e.target.value)}>
+    <option value="">{label}</option>{list.filter(x => x.id !== cid).map(x => <option key={x.id} value={"c:" + x.id}>Ke {x.name}</option>)}
+    {[1, 2, 3].filter(x => x !== b).map(x => <option key={x} value={"b:" + x}>Ke Batch {x}</option>)}{extOpts.map(([k, t]) => <option key={k} value={"v:" + k}>Ke {t}</option>)}</select>;
+  // Kartu per kurir; locked = rute sudah di HP kurir (tidak bisa dipindah/diedit). un = alamat yang belum ada kurirnya (Pembagian otomatis OFF).
   const scroll = (e, d) => e.currentTarget.closest(".board").querySelector(".couriers").scrollBy({ left: d * 360, behavior: "smooth" });
-  const cards = (R, locked) => <div className="board">
+  const cards = (R, locked, un = []) => <div className="board">
     <div className="board-bar"><span className="meta">{list.length} kurir{list.length > 2 ? " · geser ke samping untuk melihat semua" : ""}</span>
       {!searching && list.length > 0 && <button type="button" className="btn ghost sm" onClick={() => setShut(Object.fromEntries(list.map(c => [c.id, !allShut])))}>{allShut ? "Buka semua" : "Ciutkan semua"}</button>}
       <button type="button" className="btn ghost sm board-nav" aria-label="Geser daftar kurir ke kiri" onClick={e => scroll(e, -1)}>‹</button>
       <button type="button" className="btn ghost sm board-nav" aria-label="Geser daftar kurir ke kanan" onClick={e => scroll(e, 1)}>›</button></div>
-    <div className="couriers">{list.map(c => { const r = R[c.id], shown = r.seq.map((o, i) => [o, i]).filter(([o]) => hit(o)), isShut = !!shut[c.id] && !searching;
+    <div className="couriers">
+      {un.some(hit) && <article className="cc cc-un"><div className="cc-h"><div className="cc-toggle" style={{ cursor: "default" }}>
+        <span className="dot" style={{ background: "var(--warn)" }} /><b>Belum ada kurir</b><span className="meta">{un.length} alamat · pilih kurirnya</span>{searching && <Pill s="info">{un.filter(hit).length} cocok</Pill>}</div></div>
+        <ol className="stops cc-body">{un.filter(hit).map(o => <li key={o.id}><span className="num" style={{ background: "var(--warn)" }}>!</span>
+          <div><StopInfo o={o} />{moveSel(o, null, "Pilih kurir…")}<button className="btn ghost sm" style={{ marginLeft: 6 }} onClick={() => act.edit(o)}>Edit</button></div><span /></li>)}</ol></article>}
+      {list.map(c => { const r = R[c.id], shown = r.seq.map((o, i) => [o, i]).filter(([o]) => hit(o)), isShut = !!shut[c.id] && !searching;
       if (searching && !shown.length) return null;
       return (
         <article className={`cc${isShut ? " shut" : ""}`} key={c.id}><div className="cc-h">
@@ -75,15 +87,13 @@ export default function Dispatch({ orders, origins, couriers, P, date, ui, setUi
               <div><StopInfo o={o} />
                 {locked ? <><Pill s={status(o)} />{undone(o) && <select aria-label={`Pindahkan ${o.code}`} style={{ marginTop: 4, marginLeft: 6, fontSize: 13 }} value="" onChange={e => e.target.value && move(o, e.target.value)}>
                   <option value="">Pindahkan…</option>{list.filter(x => x.id !== c.id).map(x => <option key={x.id} value={"r:" + x.id}>Ke {x.name}</option>)}
-                  {extOpts.map(([k, t]) => <option key={k} value={"v:" + k}>Ke {t}</option>)}</select>}</> : <select aria-label={`Pindahkan ${o.code}`} style={{ marginTop: 4, fontSize: 13 }} value="" onChange={e => e.target.value && move(o, e.target.value)}>
-                  <option value="">Pindahkan…</option>{list.filter(x => x.id !== c.id).map(x => <option key={x.id} value={"c:" + x.id}>Ke {x.name}</option>)}
-                  {[1, 2, 3].filter(x => x !== b).map(x => <option key={x} value={"b:" + x}>Ke Batch {x}</option>)}{extOpts.map(([k, t]) => <option key={k} value={"v:" + k}>Ke {t}</option>)}</select>}
+                  {extOpts.map(([k, t]) => <option key={k} value={"v:" + k}>Ke {t}</option>)}</select>}</> : moveSel(o, c.id)}
                 {!locked && <button className="btn ghost sm" style={{ marginLeft: 6 }} onClick={() => act.edit(o)}>Edit</button>}</div>
               <div className="eta">{hhmm(e)}{o.deadline != null && <Pill s={isLate ? "late" : "ok"}>batas {hhmm(o.deadline)}</Pill>}</div></li>); })}</ol>
             : <p className="note">Tidak ada alamat di batch ini.</p>}</article>); })}</div></div>;
   const started = id => routes.some(r => r.courier_id === id && r.batch === b && r.started_at && !r.finished_at);
   return (<>
-    <h1>Susun pengiriman {dmy(date)}</h1><p className="sub">Sistem mengusulkan pembagian kurir dan urutan antar per lokasi asal dan batch. Pindahkan alamat kalau perlu, lalu kirim rute ke kurir.</p>
+    <h1>Susun pengiriman {dmy(date)}</h1><p className="sub">{auto ? "Pembagian otomatis ON: sistem mengusulkan pembagian kurir dan urutan antar per lokasi asal dan batch." : "Kurir dan urutan alamat mengikuti Excel yang di-upload (Pembagian otomatis OFF, bisa diubah di Pengaturan)."} Pindahkan alamat kalau perlu, lalu kirim rute ke kurir.</p>
     <div className="seg" role="group" aria-label="Lokasi asal" style={{ marginTop: 16 }}>
       {Object.values(origins).map(x => <button key={x.id} aria-pressed={x.id === oid} onClick={() => setUi({ ...ui, origin: x.id })}>{x.short} <small>{[1, 2, 3].reduce((a, y) => a + P[x.id][y].count, 0)}</small></button>)}</div>
     <div className="tabs" role="group" aria-label="Batch" style={{ marginTop: 12 }}>
@@ -94,18 +104,19 @@ export default function Dispatch({ orders, origins, couriers, P, date, ui, setUi
     <div className="stack swap-r dp-main" key={oid + b}>
       {!searching && <>
       <div className="kpis"><div className="kpi"><span>Alamat</span><b>{B.count}</b></div><div className="kpi"><span>Total jarak</span><b>{fmtKm(totalKm)}</b></div><div className="kpi"><span>Selesai paling akhir</span><b>{B.count ? hhmm(end) : "–"}</b></div><div className={`kpi ${late ? "bad" : "ok"}`}><span>Lewat request jam</span><b>{late}</b></div></div>
+      {B.un.length > 0 && <div className="banner warn">{B.un.length} alamat belum ada kurir (tidak ada nama driver di Excel). Pilih kurirnya di kotak <b>Belum ada kurir</b>, alamat ini tidak ikut dikirim sebelum ada kurirnya.</div>}
       {!list.length && <div className="banner warn">Belum ada kurir aktif di {org.short}. Tambahkan di menu Kurir.</div>}
       {cek > 0 && <div className="banner warn">{cek} alamat dari {org.short} belum punya titik peta dan belum masuk rute. <a href="#upload">Perbaiki di Data pengiriman</a>.</div>}
       {late > 0 && <div className="banner bad">{late} alamat diperkirakan lewat request jam. Pindahkan ke kurir lain atau kirim lewat pihak ketiga.</div>}
       {end > BATCH[b].end && <div className="banner warn">Rute selesai {hhmm(end)}, lewat jam akhir Batch {b} ({hhmm(BATCH[b].end)}).</div>}
       </>}
-      {cards(B.routes, B.sent)}
+      {cards(B.routes, B.sent, B.un)}
       {B.extra && <section className="panel extra"><h2>Tambahan Batch {b} · {B.extra.count} alamat</h2>
         <p className="note">Masuk setelah rute Batch {b} dikirim. Kurir mengambil kuenya di {org.short}, lalu alamat ini muncul di HP kurir setelah rutenya yang sekarang.</p>
-        {cards(B.extra.routes, false)}
-        <button className="btn primary big" disabled={busy || !list.length || locked} onClick={sendAdd}>{busy ? "Mengirim…" : `Kirim ${B.extra.count} alamat tambahan ke kurir`}</button></section>}
+        {cards(B.extra.routes, false, B.extra.un)}
+        <button className="btn primary big" disabled={busy || !list.length || locked || !nAdd} onClick={sendAdd}>{busy ? "Mengirim…" : nAdd ? `Kirim ${nAdd} alamat tambahan ke kurir` : "Pilih kurirnya dulu di kotak Belum ada kurir"}</button></section>}
       <div className="row">{B.sent ? <><div className="banner ok" style={{ flex: 1 }}>Rute Batch {b} sudah dikirim ke kurir. Status berubah dari aksi kurir. Kalau kurir berhalangan, pindahkan alamat yang belum selesai lewat pilihan <b>Pindahkan</b> di kartunya.</div><a className="btn ghost" href="#lacak">Pantau di Lacak →</a></>
-        : <button className="btn primary big" onClick={send} disabled={!B.count || busy || !list.length || locked}>{busy ? "Mengirim…" : `Kirim rute Batch ${b} ke kurir ${org.short}`}</button>}</div>
+        : <button className="btn primary big" onClick={send} disabled={!nSend || busy || !list.length || locked}>{busy ? "Mengirim…" : `Kirim rute Batch ${b} ke kurir ${org.short}`}</button>}</div>
       <section className="panel"><h2>Pihak ketiga · {ext.length}</h2><p className="note">Lalamove: pesan langsung dari sini supaya status, foto bukti & WhatsApp otomatis. Centang 2 pesanan Lalamove atau lebih dari outlet yang sama untuk <b>1 driver banyak alamat</b>. GoSend/Grab: pesan di aplikasinya lalu tempel link tracking.</p>
         {sel.size >= 2 && <LalamoveMulti list={ext.filter(o => sel.has(o.id))} origins={origins} toast={toast} reload={reload} done={() => setSel(new Set())} />}
         {ext.length ? <ol className="stops">{ext.filter(hit).map(o => <ExtRow key={o.id} o={o} save={save} toast={toast} reload={reload} act={act} org={origins[o.origin]}

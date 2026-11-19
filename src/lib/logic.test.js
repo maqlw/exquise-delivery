@@ -116,3 +116,12 @@ test("Excel Matrix: driver, batch, dan pick up/lalamove dibaca dari kolom kelomp
   assert.deepEqual([o.G7.via, o.G8.via, o.G8.courierForced], ["pickup", "lalamove", null]);
   assert.equal(matchCourier("FIKRI", kur).id, "f"); assert.equal(matchCourier("AZIS", kur), null);
 });
+
+test("Pembagian otomatis OFF: kurir & urutan ikut Excel, tanpa driver tidak dibagi", () => {
+  const r = buildOrders(["Kemang", "Tebet", "Pluit", "Sunter"].map((a, i) => ({ gd: "G" + i, date: "09/11/2026", sender: "S", recipient: "R" + i, address: "Jl. X, " + a, item: "Kue" })));
+  const [o0, o1, o2, o3] = r.orders; o2.courierForced = "k1"; o0.courierForced = "k1"; o1.courierForced = "zzz";
+  const P = plan(r.orders, { ck: { lat: -6.1525, lng: 106.8345 } }, [{ id: "k1", origin_id: "ck", active: true }, { id: "k2", origin_id: "ck", active: true }], {}, false).ck[1];
+  assert.deepEqual(P.routes.k1.seq.map(o => o.code), ["G0", "G2"]);
+  assert.equal(P.routes.k2.seq.length, 0);
+  assert.deepEqual(P.un.map(o => o.code), ["G1", "G3"]);
+});

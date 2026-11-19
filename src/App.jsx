@@ -88,13 +88,14 @@ function Admin({ email, me }) {
     try {
       const [m, ds] = await Promise.all([api.loadMaster(), api.shipDates()]);
       const pick = d || (ds.includes(todayYmd()) ? todayYmd() : ds[0] || todayYmd());
-      setMaster(m); setDates(ds); setDate(pick); setDay(await api.loadDay(pick));
+      const dd = await api.loadDay(pick); // tanggal & datanya diganti bersamaan, supaya judul tidak sempat menampilkan data tanggal lain
+      setMaster(m); setDates(ds); setDate(pick); setDay(dd);
     } catch (e) { toast("Gagal memuat data: " + e.message); }
   }, [date, toast]);
   useEffect(() => { reload(); }, []);
   useEffect(() => { document.querySelector(".viewport")?.scrollTo(0, 0); window.scrollTo(0, 0); }, [view]);
 
-  const P = useMemo(() => master && day ? plan(day.orders, master.origins, master.couriers, day.sent) : null, [master, day]);
+  const P = useMemo(() => master && day ? plan(day.orders, master.origins, master.couriers, day.sent, master.settings.auto_dispatch?.on === true) : null, [master, day]);
   if (!master || !day || !P) return <div className="login"><span className="spin" aria-label="Memuat" /></div>;
   const cek = day.orders.filter(o => status(o) === "cek").length;
   const courier = id => master.couriers.find(c => c.id === id);

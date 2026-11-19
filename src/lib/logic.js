@@ -165,7 +165,7 @@ export function readSheets(XLSX, wb) {
 }
 // Hitung ulang catatan sistem, batas jam, dan titik peta dari isi pesanan.
 export function recompute(o) {
-  o.issues = (o.issues || []).filter(([, m]) => /Digabung|Carry over|Tanpa nomor GD|Ditambahkan manual|menu Kurir/.test(m));
+  o.issues = (o.issues || []).filter(([, m]) => /Digabung|Carry over|Tanpa nomor GD|Ditambahkan manual|menu Kurir|driver di Excel/.test(m));
   o.out = false; o.lat = null; o.lng = null; o.area = null;
   if (o.phoneBad) o.issues.push(["warn", "No HP penerima tidak valid"]);
   else if (!o.phone) o.issues.push(["info", "Penerima tanpa No HP, link dibagikan manual"]);
@@ -199,7 +199,7 @@ export function buildOrders(rows, origins = [], couriers = []) {
   let manual = 0; const byGd = {}, out = [], errors = [];
   rows.forEach((r, i) => {
     const t = k => (r[k] == null ? "" : String(r[k]).replace(/\s+/g, " ").trim());
-    const o = { gd: t("gd"), ymd: parseDate(r.date), sender: t("sender"), recipient: t("recipient"), address: t("address"), item: t("item"), notes: t("notes"), issues: [], merged: 1 };
+    const o = { gd: t("gd"), ymd: parseDate(r.date), sender: t("sender"), recipient: t("recipient"), address: t("address"), item: t("item"), notes: t("notes"), issues: [], merged: 1, rowNo: i + 1 };
     if (o.gd && byGd[o.gd]) { const f = byGd[o.gd]; f.item += " + " + o.item; f.merged++; return; }
     if (!o.recipient || !o.address || !o.item || !o.ymd) { errors.push({ row: i + 1, code: o.gd || "(tanpa nomor)", reason: !o.ymd ? "Tanggal tidak terbaca" : "Penerima, alamat, atau item kosong" }); return; }
     if (!o.gd) { manual++; o.code = `MAN-${(ref || o.ymd).slice(8, 10)}${(ref || o.ymd).slice(5, 7)}-${String(manual).padStart(3, "0")}`; o.issues.push(["info", "Tanpa nomor GD, kode dibuat sistem"]); }
@@ -222,7 +222,7 @@ export function buildOrders(rows, origins = [], couriers = []) {
     }
     recompute(o);
     if ("group" in r && o.via !== "internal") o.courierForced = null; // ternyata di luar area / pick up
-    if (g && !gVia && !gBatch && !o.courierForced && o.via === "internal") o.issues.push(["warn", `Driver "${g}" di Excel tidak ada di menu Kurir, dibagi otomatis`]);
+    if ("group" in r && !o.courierForced && o.via === "internal") o.issues.push(["warn", g && !gBatch ? `Driver "${g}" di Excel tidak ada di menu Kurir` : "Belum ada driver di Excel"]);
     if (o.gd) byGd[o.gd] = o; out.push(o);
   });
   out.forEach(o => { if (o.merged > 1) o.issues.push(["info", `Digabung dari ${o.merged} baris (nomor GD sama)`]); });
@@ -266,7 +266,8 @@ function bestRoute(org, stops, b) {
   return a.late < bRoute.late || (a.late === bRoute.late && a.km <= bRoute.km) ? a : bRoute;
 }
 // origins: {id:{lat,lng}}, couriers: [{id,name,origin_id}], sent: {"origin|batch": {courierId: [orderId...]}}
-export function plan(orders, origins, couriers, sent) {
+// auto = Pembagian otomatis (Pengaturan). OFF: kurir & urutan mengikuti Excel; alamat tanpa kurir masuk "un" (belum ada kurir), tidak dibagi.
+export function plan(orders, origins, couriers, sent, auto = true) {
   const out = {}, byId = Object.fromEntries(orders.map(o => [o.id, o]));
   for (const oid in origins) {
     const org = origins[oid], ids = couriers.filter(c => c.origin_id === oid && c.active).map(c => c.id), cap = Math.max(1, ids.length) * CAP;
@@ -277,27 +278,29 @@ export function plan(orders, origins, couriers, sent) {
     const free = list.filter(o => !sentIds.has(o.id));
     free.forEach(o => { o._b = batchOf(o); if (o._b) byB[o._b].push(o); });
     const open = b => !sent[oid + "|" + b]; // batch yang belum dikirim ke kurir
-    free.filter(o => !o._b).sort((x, y) => km(org, x) - km(org, y)).forEach(o => { o._b = [1, 2, 3].find(b => open(b) && byB[b].length < cap) || [1, 2, 3].find(open) || 3; byB[o._b].push(o); });
+    free.filter(o => !o._b).sort((x, y) => km(org, x) - km(org, y)).forEach(o => { o._b = auto ? [1, 2, 3].find(b => open(b) && byB[b].length < cap) || [1, 2, 3].find(open) || 3 : 1; byB[o._b].push(o); });
+    const byRow = (x, y) => (x.rowNo ?? 1e9) - (y.rowNo ?? 1e9) || String(x.code).localeCompare(y.code);
     // Bagi pesanan ke kurir: yang dipilih admin dulu, sisanya dibagi per arah dari outlet.
     const assign = (L, b) => {
       const res = Object.fromEntries(ids.map(n => [n, []])), routes = {};
       const forced = L.filter(o => ids.includes(o.courierForced)); forced.forEach(o => res[o.courierForced].push(o));
       const rest = L.filter(o => !forced.includes(o));
+      if (!auto) { for (const n of ids) routes[n] = timeline(org, res[n].sort(byRow), b); return { routes, un: rest.sort(byRow) }; }
       const ang = o => Math.atan2(o.lat - org.lat, (o.lng - org.lng) * Math.cos(org.lat * Math.PI / 180));
       rest.sort((x, y) => ang(x) - ang(y));
       const target = Math.ceil(L.length / Math.max(1, ids.length)); let i = 0;
       for (const o of rest) { while (i < ids.length - 1 && res[ids[i]].length >= target) i++; if (ids.length) res[ids[i]].push(o); }
       for (const n of ids) routes[n] = bestRoute(org, res[n], b);
-      return routes;
+      return { routes, un: [] };
     };
     out[oid] = {};
     for (const b of [1, 2, 3]) {
       const key = oid + "|" + b;
-      if (!sent[key]) { out[oid][b] = { routes: assign(byB[b], b), extra: null, count: byB[b].length, sent: false }; continue; }
+      if (!sent[key]) { out[oid][b] = { ...assign(byB[b], b), extra: null, count: byB[b].length, sent: false }; continue; }
       const routes = {}, add = byB[b].filter(o => !sentIds.has(o.id));
       for (const id of ids) routes[id] = timeline(org, (sent[key][id] || []).map(x => byId[x]).filter(Boolean), b);
       // Pesanan yang masuk setelah batch dikirim: direncanakan terpisah sebagai "tambahan" (kurir ambil di outlet).
-      out[oid][b] = { routes, extra: add.length ? { routes: assign(add, b), count: add.length } : null, count: byB[b].length, sent: true };
+      out[oid][b] = { routes, un: [], extra: add.length ? { ...assign(add, b), count: add.length } : null, count: byB[b].length, sent: true };
     }
   }
   return out;

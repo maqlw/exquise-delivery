@@ -29,7 +29,10 @@ export default function Settings({ origins, settings, orders, reload, toast, wa,
       <Templates value={settings.wa_templates || {}} reload={reload} toast={toast} />
       <Tuning value={settings.tuning || TUNE} reload={reload} toast={toast} />
       <GroupMin value={settings.group_wa?.min ?? 3} reload={reload} toast={toast} />
-      <ReturnGps value={settings.return_gps?.check !== false} reload={reload} toast={toast} />
+      <Toggle title="Pembagian otomatis" value={settings.auto_dispatch?.on === true} save={on => saveSetting("auto_dispatch", { on })} reload={reload} toast={toast}
+        note={on => on ? "ON: sistem membagi alamat ke kurir & menyusun urutan antar sendiri (per arah dan jarak). Nama driver di Excel tetap dipakai kalau ada." : "OFF: kurir & urutan alamat mengikuti Excel yang di-upload. Alamat tanpa nama driver masuk kotak \"Belum ada kurir\" di Dispatch, tidak dibagi otomatis."} />
+      <Toggle title="Cek GPS saat kurir kembali ke outlet" value={settings.return_gps?.check !== false} save={on => saveSetting("return_gps", { check: on })} reload={reload} toast={toast}
+        note={on => (on ? "ON: tombol \"Saya sudah kembali di outlet\" hanya diterima kalau GPS kurir maks. 500 m dari outlet." : "OFF: kurir bisa menyelesaikan rute tanpa cek jarak. Pakai kalau GPS HP kurir sedang tidak akurat.") + " Pengiriman ke alamat tidak terpengaruh."} />
       <Couriers value={settings.ext_couriers || []} reload={reload} toast={toast} />
       <Aliases value={settings.aliases || []} orders={orders} reload={reload} toast={toast} />
     </div>
@@ -153,17 +156,16 @@ function GroupMin({ value, reload, toast }) {
       <button className="btn primary" style={{ alignSelf: "flex-end" }} onClick={save}>Simpan</button></div></section>);
 }
 
-function ReturnGps({ value, reload, toast }) {
+function Toggle({ title, note, value, save, reload, toast }) {
   const [on, setOn] = useState(value), [busy, setBusy] = useState(false);
   async function flip() {
     setBusy(true);
-    try { await saveSetting("return_gps", { check: !on }); setOn(!on); toast(!on ? "Cek GPS saat kembali ke outlet: ON" : "Cek GPS saat kembali ke outlet: OFF"); reload(); } catch (e) { toast("Gagal: " + e.message); }
+    try { await save(!on); setOn(!on); toast(`${title}: ${!on ? "ON" : "OFF"}`); reload(); } catch (e) { toast("Gagal: " + e.message); }
     setBusy(false);
   }
   return (<section className="panel"><div className="row between" style={{ flexWrap: "nowrap", gap: 16 }}>
-    <div><h2>Cek GPS saat kurir kembali ke outlet</h2>
-      <p className="note">{on ? "ON: tombol \"Saya sudah kembali di outlet\" hanya diterima kalau GPS kurir maks. 500 m dari outlet." : "OFF: kurir bisa menyelesaikan rute tanpa cek jarak. Pakai kalau GPS HP kurir sedang tidak akurat."} Pengiriman ke alamat tidak terpengaruh.</p></div>
-    <button className="switch" role="switch" aria-checked={on} aria-label="Cek GPS saat kembali ke outlet" disabled={busy} onClick={flip}><span /></button></div></section>);
+    <div><h2>{title}</h2><p className="note">{note(on)}</p></div>
+    <button className="switch" role="switch" aria-checked={on} aria-label={title} disabled={busy} onClick={flip}><span /></button></div></section>);
 }
 
 function Aliases({ value, orders, reload, toast }) {
