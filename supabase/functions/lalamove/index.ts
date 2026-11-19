@@ -110,6 +110,14 @@ Deno.serve(async (req) => {
       }
       return json({ url: u });
     }
+    if (action === "lookup") { // baca-saja: order yang dipesan dari aplikasi Lalamove bisa dibaca API ini (akun sama) atau tidak
+      const id = String(payload.llm_id ?? "").replace(/\D/g, "").slice(0, 30);
+      if (!id) return json({ error: "Order ID Lalamove kosong" }, 400);
+      try {
+        const r = await llm("GET", `/v3/orders/${id}`);
+        return json({ found: true, status: r.status, price: r.priceBreakdown?.total, currency: r.priceBreakdown?.currency, stops: (r.stops || []).length, pod: (r.stops || []).filter((x: any) => x.POD?.image).length, share_link: r.shareLink });
+      } catch (e) { return json({ found: false, error: String((e as Error).message || e) }); }
+    }
     if (action === "quote_multi" || action === "book_multi") { // 1 driver ke banyak alamat dari outlet yang sama
       const ids: string[] = Array.isArray(order_ids) ? order_ids : [];
       if (ids.length < 2) return json({ error: "Pilih minimal 2 pesanan untuk digabung" }, 400);
