@@ -148,16 +148,24 @@ export function readSheets(XLSX, wb) {
     const hi = aoa.findIndex(isHead); if (hi < 0) continue;
     const map = {};
     aoa[hi].forEach((c, j) => { const h = String(c ?? "").trim().toLowerCase(); const s = COLSPEC.find(([k, re]) => !(k in map) && re.test(h)); if (s) map[s[0]] = j; });
-    const rows = aoa.slice(hi + 1).map(r => Object.fromEntries(Object.entries(map).map(([k, j]) => [k, r[j]])))
-      .filter(r => [r.address, r.recipient, r.item].some(v => v != null && String(v).trim() !== ""));
-    const score = rows.length + (map.recipient != null && /^nama$/i.test(String(aoa[hi][map.recipient] ?? "").trim()) ? 1e6 : 0); // format Matrix (Sheet1) diutamakan
+    const matrix = map.recipient != null && /^nama$/i.test(String(aoa[hi][map.recipient] ?? "").trim());
+    // Matrix: kolom setelah WORDING berisi nama driver / "BATCH 2" / "PICK UP OUTLET / LALAMOVE", di-merge per kelompok -> berlaku untuk baris di bawahnya.
+    const gc = matrix && map.notes != null ? map.notes + 1 : null, bt = v => String(v ?? "").match(/batch\s*([123])/i);
+    let grp = "", gb = null;
+    if (gc != null) for (let i = 0; i <= hi; i++) { const m = bt(aoa[i][gc]); if (m) gb = +m[1]; }
+    const rows = aoa.slice(hi + 1).map(r => {
+      const o = Object.fromEntries(Object.entries(map).map(([k, j]) => [k, r[j]]));
+      if (gc != null) { const v = String(r[gc] ?? "").replace(/\s+/g, " ").trim(); if (v) { grp = v; const m = bt(v); if (m) gb = +m[1]; } o.group = grp; o.groupBatch = gb; }
+      return o;
+    }).filter(r => [r.address, r.recipient, r.item].some(v => v != null && String(v).trim() !== ""));
+    const score = rows.length + (matrix ? 1e6 : 0); // format Matrix (Sheet1) diutamakan
     if (!best || score > best.score) best = { name, rows, score };
   }
   return best;
 }
 // Hitung ulang catatan sistem, batas jam, dan titik peta dari isi pesanan.
 export function recompute(o) {
-  o.issues = (o.issues || []).filter(([, m]) => /Digabung|Carry over|Tanpa nomor GD|Ditambahkan manual/.test(m));
+  o.issues = (o.issues || []).filter(([, m]) => /Digabung|Carry over|Tanpa nomor GD|Ditambahkan manual|menu Kurir/.test(m));
   o.out = false; o.lat = null; o.lng = null; o.area = null;
   if (o.phoneBad) o.issues.push(["warn", "No HP penerima tidak valid"]);
   else if (!o.phone) o.issues.push(["info", "Penerima tanpa No HP, link dibagikan manual"]);
@@ -172,8 +180,19 @@ export function recompute(o) {
   else if (o.via !== "pickup") o.issues.push(["warn", "Alamat belum ketemu di peta: tidak ada kode pos, kelurahan, atau kecamatan yang dikenali. Pilih kelurahan"]);
   return o;
 }
+// Nama driver di Excel -> kurir aktif. Cocok persis dulu, lalu yang mirip (FIKRI = FIKRI NUR, IRFAN = IRPAN) asal hanya satu kandidat.
+const nm = s => String(s).toUpperCase().replace(/[^A-Z]/g, "");
+const oneEdit = (a, b) => { if (Math.abs(a.length - b.length) > 1) return false; let i = 0, j = 0, d = 0;
+  while (i < a.length && j < b.length) { if (a[i] === b[j]) { i++; j++; continue; } if (++d > 1) return false; if (a.length >= b.length) i++; if (b.length >= a.length) j++; }
+  return d + (a.length - i) + (b.length - j) <= 1; };
+export function matchCourier(name, couriers) {
+  const n = nm(name), act = couriers.filter(c => c.active !== false); if (n.length < 3) return null;
+  const exact = act.filter(c => nm(c.name) === n); if (exact.length) return exact.length === 1 ? exact[0] : null;
+  const near = act.filter(c => { const m = nm(c.name); return m.length >= 3 && (m.startsWith(n) || n.startsWith(m) || oneEdit(m, n)); });
+  return near.length === 1 ? near[0] : null;
+}
 // Baris Excel -> pesanan. Baris error dikembalikan terpisah dan tidak disimpan.
-export function buildOrders(rows, origins = []) {
+export function buildOrders(rows, origins = [], couriers = []) {
   const ymds = rows.map(r => parseDate(r.date)).filter(Boolean), freq = {};
   ymds.forEach(d => freq[d] = (freq[d] || 0) + 1);
   const ref = Object.keys(freq).sort((a, b) => freq[b] - freq[a])[0] || null;
@@ -191,10 +210,19 @@ export function buildOrders(rows, origins = []) {
     const og = t("origin").toLowerCase(), hit = og && origins.find(x => [x.id, x.short, x.name].some(n => n && (og.includes(n.toLowerCase()) || n.toLowerCase().includes(og))));
     o.origin = hit ? hit.id : (origins.find(x => x.id === "ck") || origins[0])?.id || "ck";
     const b = t("batch").match(/[123]/); o.batchReq = b ? +b[0] : null;
-    const v = t("via").toLowerCase(), ext = Object.entries(VIA).find(([k, n]) => !BUILTIN_VIA.includes(k) && v.includes(n.toLowerCase()));
+    const g = t("group"), gVia = /pick ?up|lalamove|gosend|gojek|grab|borzo/i.test(g), gBatch = /batch\s*[123]/i.test(g);
+    const v = (t("via") || (gVia ? g : "")).toLowerCase(), ext = Object.entries(VIA).find(([k, n]) => !BUILTIN_VIA.includes(k) && v.includes(n.toLowerCase()));
     o.via = ext ? ext[0] : /lalamove/.test(v) ? "lalamove" : /gosend|gojek/.test(v) ? "gosend" : /grab/.test(v) ? "grab" : /pick/.test(v) ? "pickup" : "internal";
     o.reqTime = null; o.areaManual = null;
+    if ("group" in r) { // format Matrix: driver & batch dari kolom kelompok
+      const c = g && !gVia && !gBatch ? matchCourier(g, couriers) : null;
+      o.courierForced = o.via === "internal" && c ? c.id : null;
+      if (o.courierForced && !hit) o.origin = c.origin_id;
+      if (o.batchReq == null && o.via === "internal" && r.groupBatch) o.batchReq = r.groupBatch;
+    }
     recompute(o);
+    if ("group" in r && o.via !== "internal") o.courierForced = null; // ternyata di luar area / pick up
+    if (g && !gVia && !gBatch && !o.courierForced && o.via === "internal") o.issues.push(["warn", `Driver "${g}" di Excel tidak ada di menu Kurir, dibagi otomatis`]);
     if (o.gd) byGd[o.gd] = o; out.push(o);
   });
   out.forEach(o => { if (o.merged > 1) o.issues.push(["info", `Digabung dari ${o.merged} baris (nomor GD sama)`]); });

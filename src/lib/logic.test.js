@@ -99,3 +99,20 @@ test("jasa kirim tambahan: disisipkan sebelum Pick up, nama publik dari kode", a
   assert.equal(viaKey("Borzo (Mr. Speedy)"), "borzo_mr_speedy"); assert.equal(viaKey("99 Express"), "x99_express");
   setExtVia([]); assert.deepEqual(Object.keys(VIA), ["internal", "lalamove", "gosend", "grab", "pickup"]);
 });
+
+test("Excel Matrix: driver, batch, dan pick up/lalamove dibaca dari kolom kelompok (merge)", async () => {
+  const XLSX = await import("xlsx"); const { readSheets, matchCourier } = await import("./logic.js");
+  const H = ["NO", "NO PENGIRIMAN", "Tanggal Pengiriman", "PENGIRIM", "NAMA", "ALAMAT", "NO PENERIMA", "ITEM", "WORDING", "7.00"];
+  const row = (i, g, a = "Jl. X, Kemang") => [i, "G" + i, "19/11/2026", "S", "R" + i, a, "", "Kue", "", g];
+  const ws = XLSX.utils.aoa_to_sheet([["MATRIX", , , , , , , , , "BATCH 1"], H,
+    row(1, "HANSARI"), row(2, null, "Jl. Y, Tebet"), row(3, "IRFAN"), row(4, "SIAPA"), row(5, "BATCH 2"), row(6, null),
+    row(7, "PICK UP OUTLET / LALAMOVE", "Pickup: Outlet Menteng"), row(8, null, "Jl. Z, Pluit")]);
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+  const kur = [{ id: "h", name: "HANSARI", origin_id: "ck" }, { id: "i", name: "IRPAN", origin_id: "ck" }, { id: "f", name: "FIKRI NUR", origin_id: "ck" }];
+  const o = Object.fromEntries(buildOrders(readSheets(XLSX, wb).rows, [{ id: "ck" }], kur).orders.map(x => [x.code, x]));
+  assert.deepEqual([o.G1.courierForced, o.G2.courierForced, o.G3.courierForced, o.G4.courierForced], ["h", "h", "i", null]);
+  assert.deepEqual([o.G1.batchReq, o.G3.batchReq, o.G5.batchReq, o.G6.batchReq], [1, 1, 2, 2]);
+  assert.ok(o.G4.issues.some(([, m]) => /SIAPA/.test(m)));
+  assert.deepEqual([o.G7.via, o.G8.via, o.G8.courierForced], ["pickup", "lalamove", null]);
+  assert.equal(matchCourier("FIKRI", kur).id, "f"); assert.equal(matchCourier("AZIS", kur), null);
+});

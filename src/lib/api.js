@@ -51,7 +51,7 @@ export async function shipDates() {
 export async function saveUpload(fileName, sheet, rowCount, list) {
   const up = must(await sb.from("uploads").insert({ file_name: fileName, sheet, row_count: rowCount }).select("id").single());
   for (let i = 0; i < list.length; i += 200)
-    must(await sb.from("orders").upsert(list.slice(i, i + 200).map(o => ({ ...toDb(o), upload_id: up.id })), { onConflict: "code" }));
+    must(await sb.from("orders").upsert(list.slice(i, i + 200).map(o => ({ ...toDb(o), upload_id: up.id, ...(o.courierForced !== undefined && { assigned_courier: o.courierForced }) })), { onConflict: "code" }));
 }
 export const insertOrder = async o => must(await sb.from("orders").insert(toDb(o)).select("*").single());
 export const updateOrder = async (id, patch) => must(await sb.from("orders").update(patch).eq("id", id).select("*").single());

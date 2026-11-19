@@ -13,6 +13,7 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v030** | 19/11/2026 | Upload Excel Matrix: kolom di sebelah WORDING (nama driver yang di-merge per kelompok) sekarang dibaca. Nama driver → alamat langsung masuk ke kurir itu di Dispatch (nama mirip ikut cocok, mis. IRFAN = IRPAN); "BATCH 2" → batch 2; "PICK UP OUTLET / LALAMOVE" → pick up kalau alamatnya pickup, selain itu Lalamove. Nama driver yang tidak ada di menu Kurir diberi peringatan. |
 | **v029** | 19/11/2026 | Ganti batch/outlet/tanggal di Data Pengiriman sekarang ikut memindahkan pesanan di Dispatch: pesanan yang belum dibawa kurir keluar dari rute lama dan muncul di batch baru; pilihan batch di form menang atas pindahan lama di Dispatch. Batch dikunci setelah pesanan dibawa kurir. Kurir tes AZIS (0877-9000-6465) & DELIVERY dihapus; alamat AZIS tes dipindah ke AZIS asli. |
 | **v028** | 19/11/2026 | Dispatch: kurir berjejer ke samping (tombol ‹ ›, bisa diciutkan per kurir / semua, daftar digulir di dalam kolom); pencarian penerima/kode/alamat/No HP/item (tekan "/"), loncat ke batch/outlet lain bila hasil ada di sana; peta pindah ke bawah. |
 | **v027** | 18/11/2026 | Form Sampai: pilih dulu siapa yang menerima; kalau bukan penerima langsung, nama yang menerima wajib diisi (tidak lagi otomatis nama di pesanan). WA "sudah diterima oleh" menyebut hubungannya, mis. "Aldi (Satpam / resepsionis)". |

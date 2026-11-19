@@ -9,7 +9,7 @@ const FILTERS = [["all", "Semua"], ["draft", "Belum dikirim"], ["jalan", "Dikiri
 const isLocked = o => ["jalan", "sampai", "gagal", "siap"].includes(o.ship);
 const inFilter = (o, f) => { const s = status(o); return f === "all" || (f === "draft" ? ["draft", "siap"].includes(s) : s === f); };
 
-export default function Upload({ orders, origins, date, dates, setDate, ui, setUi, reload, toast, act, locked }) {
+export default function Upload({ orders, origins, couriers, date, dates, setDate, ui, setUi, reload, toast, act, locked }) {
   const [sel, setSel] = useState(() => new Set()), [bulk, setBulk] = useState({ via: "", origin: "", batch: "" }), [q, setQ] = useState(""), [busy, setBusy] = useState(false), [over, setOver] = useState(false), [errors, setErrors] = useState(null);
   async function readFile(f) {
     if (!f) return;
@@ -17,7 +17,7 @@ export default function Upload({ orders, origins, date, dates, setDate, ui, setU
     try {
       const best = readSheets(XLSX, XLSX.read(await f.arrayBuffer(), { type: "array", cellDates: true }));
       if (!best?.rows.length) throw new Error("Tidak menemukan tabel pengiriman. Pastikan ada kolom No Pengiriman dan Alamat.");
-      const r = buildOrders(best.rows, Object.values(origins));
+      const r = buildOrders(best.rows, Object.values(origins), couriers);
       await saveUpload(f.name, best.name, best.rows.length, r.orders);
       setErrors({ file: f.name, sheet: best.name, saved: r.orders.length, list: r.errors });
       toast(`${r.orders.length} pesanan disimpan dari ${f.name}`);
@@ -65,7 +65,7 @@ export default function Upload({ orders, origins, date, dates, setDate, ui, setU
     <label className={`drop ${over ? "over" : ""}`} htmlFor="file" style={{ marginTop: 16, cursor: "pointer" }}
       onDragOver={e => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={e => { e.preventDefault(); setOver(false); readFile(e.dataTransfer.files[0]); }}>
       <h2>Tarik file Excel ke sini, atau klik untuk memilih</h2>
-      <p className="note">Format yang dibaca: sheet Matrix Delivery (Sheet1) dengan kolom No Pengiriman, Tanggal Pengiriman, Pengirim, No Pengirim, Nama (penerima), Alamat, No Penerima, Item, Wording.</p>
+      <p className="note">Format yang dibaca: sheet Matrix Delivery (Sheet1) dengan kolom No Pengiriman, Tanggal Pengiriman, Pengirim, No Pengirim, Nama (penerima), Alamat, No Penerima, Item, Wording. Kolom di sebelah Wording (boleh di-merge) dibaca sebagai kelompok: nama driver → masuk ke kurir itu, "BATCH 2" → batch 2, "PICK UP" / "LALAMOVE" → tidak masuk rute kurir.</p>
       <span className="btn primary">{busy ? "Membaca…" : "Pilih file .xlsx"}</span></label></>);
 
   const c = {}; orders.forEach(o => { const s = status(o); c[s] = (c[s] || 0) + 1; });
