@@ -56,18 +56,24 @@ async function syncOne(db: any, o: any, r: any) {
     if (data?.length && r.status === "PICKED_UP") wa.kirim = await notify(o.id, "kirim");
   }
   if (done) {
-    let proof = null;
-    if (pod.image) try {
-      const img = await fetch(pod.image), b = await img.arrayBuffer(), type = img.headers.get("content-type") || "image/jpeg";
-      if (img.ok && b.byteLength < 5e6 && /image\/(jpeg|png|webp)/.test(type)) {
-        const path = `${o.token}/lalamove-${o.llm_order_id}.${type.split("/")[1].replace("jpeg", "jpg")}`;
-        if (!(await db.storage.from("proofs").upload(path, b, { contentType: type, upsert: true })).error) proof = path;
-      }
-    } catch { /* foto bukti tidak bisa diambil, status tetap sampai */ }
-    const { data } = await db.from("orders").update({ status: "sampai", delivered_at: pod.deliveredAt || new Date().toISOString(), receiver_name: o.receiver_name || o.recipient, proof_path: proof || o.proof_path }).eq("id", o.id).eq("status", "jalan").select("id");
+    const proof = o.proof_path || await grabPod(db, o, pod.image);
+    const { data } = await db.from("orders").update({ status: "sampai", delivered_at: pod.deliveredAt || new Date().toISOString(), receiver_name: o.receiver_name || o.recipient, proof_path: proof }).eq("id", o.id).eq("status", "jalan").select("id");
     if (data?.length) wa.sampai = await notify(o.id, "sampai");
+    else if (proof && !o.proof_path) await db.from("orders").update({ proof_path: proof }).eq("id", o.id).eq("status", "sampai"); // sudah ditandai sampai manual: tambah foto saja, tanpa WA ulang
   }
   return wa;
+}
+// Foto bukti dari driver Lalamove disalin ke penyimpanan kita (link foto Lalamove tidak permanen).
+async function grabPod(db: any, o: any, url?: string) {
+  if (!url) return null;
+  try {
+    const img = await fetch(url), b = await img.arrayBuffer(), type = img.headers.get("content-type") || "image/jpeg";
+    if (img.ok && b.byteLength < 5e6 && /image\/(jpeg|png|webp)/.test(type)) {
+      const path = `${o.token}/lalamove-${o.llm_order_id}.${type.split("/")[1].replace("jpeg", "jpg")}`;
+      if (!(await db.storage.from("proofs").upload(path, b, { contentType: type, upsert: true })).error) return path;
+    }
+  } catch { /* foto bukti tidak bisa diambil, status tetap sampai */ }
+  return null;
 }
 
 Deno.serve(async (req) => {
@@ -82,6 +88,17 @@ Deno.serve(async (req) => {
       if (o) { try { await sync(db, o); } catch (e) { console.error("sync gagal", id, e); } }
     }
     return json({ ok: true });
+  }
+  if (payload.action === "poll") { // pg_cron tiap 3 menit: cadangan kalau kabar dari Lalamove tidak datang (mis. order dari aplikasi Lalamove)
+    const { data: k } = await db.from("app_secrets").select("value").eq("key", "cron_key").maybeSingle();
+    if (!k?.value || req.headers.get("x-cron-key") !== k.value) return json({ error: "forbidden" }, 403);
+    const since = new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10), seen = new Set<string>();
+    const { data: os } = await db.from("orders").select("*").not("llm_order_id", "is", null).in("status", ["draft", "siap", "jalan"]).gte("ship_date", since);
+    for (const o of (os || []).filter((x: any) => !["CANCELED", "REJECTED", "EXPIRED"].includes(x.llm_status))) {
+      if (seen.has(o.llm_order_id)) continue; seen.add(o.llm_order_id);
+      try { await sync(db, o); } catch (e) { console.error("poll gagal", o.llm_order_id, e); }
+    }
+    return json({ ok: true, orders: seen.size });
   }
   const asUser = createClient(URL_, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } });
   const { data: isAdmin } = await asUser.rpc("is_admin");
@@ -175,6 +192,24 @@ Deno.serve(async (req) => {
       });
       await db.from("orders").update({ via: "lalamove", llm_order_id: r.orderId, llm_stop_id: null, llm_status: r.status, llm_price: r.priceBreakdown?.total ?? null, llm_service: service || null, ext_link: r.shareLink || o.ext_link }).eq("id", o.id);
       return json({ order_id: r.orderId, status: r.status, share_link: r.shareLink, price: r.priceBreakdown?.total });
+    }
+    if (action === "link") { // dipesan dari aplikasi Lalamove -> dihubungkan lewat Order ID, lalu status, foto & WA ikut otomatis
+      const id = String(payload.llm_id ?? "").replace(/\D/g, "").slice(0, 30);
+      if (id.length < 8) return json({ error: "Order ID tidak valid. Salin nomor Order ID dari detail pesanan di aplikasi Lalamove." }, 400);
+      if (o.llm_order_id && o.llm_order_id !== id && !["CANCELED", "REJECTED", "EXPIRED"].includes(o.llm_status)) return json({ error: "Pesanan ini sudah terhubung ke order Lalamove lain yang masih aktif" }, 409);
+      let r: any; try { r = await llm("GET", `/v3/orders/${id}`); } catch { return json({ error: "Order ID tidak ditemukan di akun Lalamove ini. Cek lagi nomornya." }, 404); }
+      const drops = (r.stops || []).slice(1), hp = (p: unknown) => String(p ?? "").replace(/\D/g, "").replace(/^0/, "62");
+      // 1 order Lalamove bisa berisi beberapa alamat: cocokkan lewat No HP penerima, kalau tidak bisa admin memilih alamatnya.
+      let stop = drops.length === 1 ? drops[0] : drops.find((x: any) => x.stopId === payload.stop_id);
+      if (!stop && o.recipient_phone) { const hit = drops.filter((x: any) => hp(x.phone) === hp(o.recipient_phone)); if (hit.length === 1) stop = hit[0]; }
+      if (!stop) {
+        const { data: used } = await db.from("orders").select("code, llm_stop_id").eq("llm_order_id", id);
+        return json({ choose: drops.map((x: any) => ({ stop_id: x.stopId, address: x.address || "", name: x.name || "", used: (used || []).find((u: any) => u.llm_stop_id === x.stopId)?.code || null })) });
+      }
+      const total = Number(r.priceBreakdown?.total || 0);
+      await db.from("orders").update({ via: "lalamove", llm_order_id: id, llm_stop_id: drops.length > 1 ? stop.stopId : null, llm_status: r.status, llm_price: total ? Math.round(total / Math.max(1, drops.length)) : null, ext_link: r.shareLink || o.ext_link }).eq("id", o.id);
+      const { wa } = await sync(db, { ...o, llm_order_id: id });
+      return json({ status: r.status, stops: drops.length, wa });
     }
     if (!o.llm_order_id) return json({ error: "Pesanan ini belum dipesan ke Lalamove" }, 400);
     if (action === "status") {

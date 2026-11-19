@@ -174,7 +174,28 @@ function LalamoveBox({ o, toast, reload, org, act }) {
       : <details className="llm-map"><summary>Cek titik di peta {/^pin:/.test(o.areaManual || "") ? "· titik tepat" : "· masih perkiraan dari alamat"}</summary>
         <PinMap origin={org} stops={[{ lat: o.lat, lng: o.lng, title: o.recipient }]} height={220} label={`Peta ${o.recipient}`} />
         <button className="btn ghost sm" onClick={() => act.edit(o)}>Ubah titik</button></details>}
-    {q && <div className="meta">Ongkir {rp(q.price)}{q.distance?.value ? ` · ${(q.distance.value / 1000).toFixed(1)} km` : ""} · harga berlaku sampai {new Date(q.expires_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</div>}</div>);
+    {q && <div className="meta">Ongkir {rp(q.price)}{q.distance?.value ? ` · ${(q.distance.value / 1000).toFixed(1)} km` : ""} · harga berlaku sampai {new Date(q.expires_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</div>}
+    <LinkLlm o={o} toast={toast} reload={reload} /></div>);
+}
+// Sudah dipesan di aplikasi Lalamove: tempel Order ID -> status, foto bukti & WA ikut otomatis seperti pesanan dari Dispatch.
+function LinkLlm({ o, toast, reload }) {
+  const [id, setId] = useState(""), [busy, setBusy] = useState(false), [ch, setCh] = useState(null);
+  async function go(stop_id) {
+    setBusy(true);
+    try {
+      const r = await lalamove("link", { order_id: o.id, llm_id: id, ...(stop_id && { stop_id }) });
+      if (r.choose) setCh(r.choose);
+      else { setCh(null); toast(`${o.recipient} terhubung ke Lalamove · ${LLM_STATUS[r.status] || r.status}. Status, foto & WA sekarang otomatis.`); reload(); }
+    } catch (e) { toast(e.message); }
+    setBusy(false);
+  }
+  return (<details className="llm-map" open={/lalamove\.com/.test(o.link || "")}><summary>Sudah pesan di aplikasi Lalamove? Tempel Order ID</summary>
+    <div className="row"><input inputMode="numeric" aria-label={`Order ID Lalamove ${o.code}`} placeholder="Order ID, mis. 3632067605763957438" value={id} onChange={e => { setId(e.target.value); setCh(null); }} style={{ flex: 1, minWidth: 160 }} />
+      <button className="btn ghost sm" disabled={busy || id.replace(/\D/g, "").length < 8} onClick={() => go()}>{busy ? "Menghubungkan…" : "Hubungkan"}</button></div>
+    {ch && <label className="meta">Order ini berisi {ch.length} alamat. Pilih alamat untuk {o.recipient}:
+      <select style={{ display: "block", marginTop: 4, maxWidth: "100%" }} value="" disabled={busy} onChange={e => e.target.value && go(e.target.value)}><option value="">Pilih alamat…</option>
+        {ch.map((x, i) => <option key={x.stop_id} value={x.stop_id}>{i + 1}. {x.name ? x.name + " · " : ""}{x.address.slice(0, 70)}{x.used ? ` (sudah dipakai ${x.used})` : ""}</option>)}</select></label>}
+    <div className="meta">Order ID = angka panjang di detail pesanan aplikasi Lalamove, bukan link share.</div></details>);
 }
 
 function ExtRow({ o, save, toast, reload, act, org, checked, onCheck }) {
