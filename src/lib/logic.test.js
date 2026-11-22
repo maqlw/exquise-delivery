@@ -15,7 +15,9 @@ test("request jam dibaca dari teks", () => {
 test("tanggal dan area", () => {
   assert.equal(parseDate("09/11/2026"), "2026-11-09");
   assert.equal(geocode("Jl. Raya Bogor Km 20, Pasar Rebo").name, "Pasar Rebo");
-  assert.ok(geocode("Bogor Baru Blok D").out);
+  assert.ok(!geocode("Jl. Duta Indah No.9 Kel. Tegallega Kec. Kota Bogor Tengah")?.out); // Bogor dilayani kurir internal
+  assert.match(geocode("JL BUKIT NIRWANA RAYA 2 MULYAHARJA BOGOR SELATAN").name, /^Mulyaharja, Bogor Selatan/);
+  assert.ok(geocode("Jl. Asia Afrika, Bandung").out);
   assert.equal(geocode("Jl gading kirana timur kelapa gading jakarta utara 14240").name, "Kelapa Gading, Jakarta Utara"); // kode pos, kelurahan tidak disebut
   assert.equal(geocode("Jl Rajawali Sawah Besar Gunung Sahari Utara JAKARTA 10720").name, "Gunung Sahari Utara, Sawah Besar, Jakarta Pusat");
   assert.equal(geocode("Jl. Kemang Selatan VIII, Jakarta Selatan").name, "Kemang"); // bukan Kemang di Bogor

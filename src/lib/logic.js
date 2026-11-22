@@ -41,7 +41,7 @@ export const AREAS = [
   ["Tanjung Duren", /tanjung duren/, -6.1750, 106.7850], ["Kebon Jeruk", /kebon jeruk/, -6.1920, 106.7700],
   ["Grogol", /grogol/, -6.1650, 106.7900], ["Cinere", /cinere/, -6.3350, 106.7840], ["Depok", /depok|margonda/, -6.3730, 106.8320],
 ].map(([name, re, lat, lng]) => ({ name, re, lat, lng }));
-const OUTSIDE = [["Bandung", /bandung/], ["Medan", /\bmedan\b(?!\s*merdeka)/], ["Surabaya", /surabaya/], ["Bogor", /(?<!raya\s)\bbogor\b/], ["Semarang", /semarang/], ["Yogyakarta", /yogya|jogja/]]; // "Jl. Raya Bogor" dan "Medan Merdeka" ada di Jakarta
+const OUTSIDE = [["Bandung", /bandung/], ["Medan", /\bmedan\b(?!\s*merdeka)/], ["Surabaya", /surabaya/], ["Semarang", /semarang/], ["Yogyakarta", /yogya|jogja/]]; // "Medan Merdeka" ada di Jakarta; Bogor dilayani kurir internal (kelurahannya ada di wilayah.js)
 
 export const hhmm = m => { const t = Math.round(m); return `${String(Math.floor(t / 60)).padStart(2, "0")}.${String(t % 60).padStart(2, "0")}`; };
 export const fmtKm = k => k.toFixed(1).replace(".", ",") + " km";
