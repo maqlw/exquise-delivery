@@ -14,7 +14,7 @@ export const fromDb = r => ({
   id: r.id, code: r.code, gd: r.gd, ymd: r.ship_date, sender: r.sender, phoneSender: r.sender_phone, recipient: r.recipient, phone: r.recipient_phone,
   address: r.address, area: r.area, lat: r.lat, lng: r.lng, item: r.item, notes: r.notes, origin: r.origin_id, batchReq: r.batch_req, reqTime: r.request_time,
   deadline: r.deadline_min, via: r.via, link: r.ext_link || "", token: r.token, ship: r.status === "draft" ? null : r.status, carry: r.carry_over, merged: r.merged_rows,
-  issues: r.issues || [], failReason: r.fail_reason, proofPath: r.proof_path, proof: proofUrl(r.proof_path), archived: isArchived(r.proof_path), receivedBy: r.receiver_name, receivedRel: r.receiver_relation,
+  issues: r.issues || [], failReason: r.fail_reason, proofPath: r.proof_path, proof: proofUrl(r.proof_path), archived: isArchived(r.proof_path), proofBeforePath: r.proof_before_path, proofBefore: proofUrl(r.proof_before_path), beforeArchived: isArchived(r.proof_before_path), receivedBy: r.receiver_name, receivedRel: r.receiver_relation,
   sentAt: r.sent_at, doneAt: r.delivered_at, courierForced: r.assigned_courier, batchForced: r.batch_forced, rowNo: r.row_no, areaManual: r.area_manual, llm: r.llm_order_id ? { id: r.llm_order_id, status: r.llm_status, price: r.llm_price } : null, out: (r.issues || []).some(([, m]) => /Di luar area/.test(m)),
 });
 // Kolom data saja: status, token, dan bukti tidak ikut supaya upload ulang tidak menimpa progres pengiriman.

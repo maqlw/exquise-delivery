@@ -75,7 +75,7 @@ export default function CourierScreen() {
     setHomeForm(false); setNote("");
   }, "Permintaan langsung pulang dikirim ke admin");
   const mark = async (o, st, extra) => {
-    const { error } = await sb.rpc("courier_mark", { p_order: o.id, p_status: st, p_reason: extra.reason || null, p_proof: extra.path || null, p_receiver_name: extra.name || null, p_receiver_relation: extra.rel || null });
+    const { error } = await sb.rpc("courier_mark", { p_order: o.id, p_status: st, p_reason: extra.reason || null, p_proof: extra.path || null, p_proof_before: extra.before || null, p_receiver_name: extra.name || null, p_receiver_relation: extra.rel || null });
     if (error) throw new Error(error.message);
     await notify(o.id, st);
   };
@@ -131,9 +131,9 @@ export default function CourierScreen() {
     </div>
       {org && <section className="panel sticky-map"><h2>Peta rute</h2><MapSVG origin={org} routes={[{ color: me.color, pts: r.stops, doneN: done.length }]} /></section>}</div>}
   </main>
-    {modal && <SampaiForm order={modal} onClose={() => setModal(null)} onSave={async ({ name, rel, file }) => {
-      const path = file ? await uploadProof(modal.token, file) : null;
-      await mark(modal, "sampai", { name, rel, path }); setModal(null); toast(`${modal.recipient}: sampai. WhatsApp konfirmasi ke pemesan`); await load(); }} />}
+    {modal && <SampaiForm need order={modal} onClose={() => setModal(null)} onSave={async ({ name, rel, file, fileBefore }) => {
+      const [path, before] = await Promise.all([file && uploadProof(modal.token, file), fileBefore && uploadProof(modal.token, fileBefore)]);
+      await mark(modal, "sampai", { name, rel, path, before }); setModal(null); toast(`${modal.recipient}: sampai. WhatsApp konfirmasi ke pemesan`); await load(); }} />}
     {toastEl}
   </div>);
 }

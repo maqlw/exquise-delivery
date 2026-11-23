@@ -122,9 +122,9 @@ function Admin({ email, me }) {
       const res = await api.notify(o.id, "kirim"), logs = (await api.waLogs(o.id)).filter(l => l.kind === "kirim" && l.created_at >= at);
       setModal({ kind: "wa", title: `Dikirim · ${o.code}`, result: res, logs }); reload();
     },
-    async sampai(o, { name, rel, file }) {
-      const at = new Date().toISOString(), path = file ? await api.uploadProof(o.token, file) : o.proofPath;
-      await api.updateOrder(o.id, { status: "sampai", receiver_name: name, receiver_relation: rel, proof_path: path, delivered_at: at, fail_reason: null });
+    async sampai(o, { name, rel, file, fileBefore }) {
+      const at = new Date().toISOString(), [up, upB] = await Promise.all([file && api.uploadProof(o.token, file), fileBefore && api.uploadProof(o.token, fileBefore)]);
+      await api.updateOrder(o.id, { status: "sampai", receiver_name: name, receiver_relation: rel, proof_path: up || o.proofPath, proof_before_path: upB || o.proofBeforePath || null, delivered_at: at, fail_reason: null });
       const res = await api.notify(o.id, "sampai"), logs = (await api.waLogs(o.id)).filter(l => l.kind === "sampai" && l.created_at >= at);
       setModal({ kind: "wa", title: `Sampai · ${o.code}`, result: res, logs }); reload();
     },

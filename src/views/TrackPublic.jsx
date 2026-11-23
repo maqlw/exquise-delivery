@@ -37,7 +37,8 @@ export default function TrackPublic({ token, compact }) {
         : <div className="etabig" style={{ fontSize: 24 }}>Jadwal antar sedang disusun</div>}
       <Timeline steps={steps} />
       {d.via !== "internal" && d.via !== "pickup" && d.ext_link && <a className="btn primary big" href={d.ext_link} target="_blank" rel="noopener">Lacak driver di {viaName(d.via)}</a>}
-      {d.proof_path && <div><div className="lbl">Foto bukti terima</div>{d.proof_path.startsWith("drive:") ? <p className="note">Foto sudah diarsipkan (lebih dari 30 hari). Hubungi Exquise bila memerlukannya.</p> : <img className="proof" src={proofUrl(d.proof_path)} alt="Foto bukti terima" />}</div>}</>;
+      {(d.proof_path || d.proof_before) && <div><div className="lbl">Foto bukti</div>{[d.proof_path, d.proof_before].some(p => p?.startsWith("drive:")) ? <p className="note">Foto sudah diarsipkan (lebih dari 30 hari). Hubungi Exquise bila memerlukannya.</p>
+        : <div className="proofs">{[["Sebelum diserahkan", d.proof_before], ["Sesudah diterima", d.proof_path]].filter(x => x[1]).map(([t, p]) => <figure key={t}><img className="proof" src={proofUrl(p)} alt={`Foto ${t.toLowerCase()}`} /><figcaption className="meta">{t}</figcaption></figure>)}</div>}</div>}</>;
   if (compact) return <div className="grp-detail">{status}<a className="btn ghost sm" href={`/l/${token}`} target="_blank" rel="noopener">Buka halaman lengkap ↗</a></div>;
   return shell(<div className="stack trackpage">
     <section className="panel fadeup"><div className="row between"><div><h1 style={{ fontSize: 22 }}>Pesanan untuk {d.recipient}</h1><p className="sub">{d.item} · dari {d.sender}</p></div><Pill s={s}>{LABEL[s]}</Pill></div>

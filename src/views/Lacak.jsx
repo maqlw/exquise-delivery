@@ -46,7 +46,8 @@ function Detail({ o, ctx }) {
       <Timeline steps={steps} />
       {!readOnly && <div className="row"><button className="btn primary sm" onClick={() => act.update(o)}>Update</button><button className="btn ghost sm" onClick={() => act.edit(o)}>Edit</button></div>}</section>
     <section className="panel"><h2>Informasi pesanan</h2><dl className="info">{info2.map(([k, v]) => [<dt key={k + "t"}>{k}</dt>, <dd key={k + "d"}>{v}</dd>])}</dl>
-      {o.proof && <div><div className="lbl">Foto bukti terima</div><a href={o.proof} target="_blank" rel="noopener">{o.archived ? "Buka arsip di Google Drive ↗" : <img className="proof" src={o.proof} alt="Foto bukti terima" />}</a></div>}
+      {(o.proof || o.proofBefore) && <div><div className="lbl">Foto bukti</div><div className="proofs">{[["Sebelum diserahkan", o.proofBefore, o.beforeArchived], ["Sesudah diterima", o.proof, o.archived]].filter(x => x[1]).map(([t, u, arc]) =>
+        <figure key={t}><a href={u} target="_blank" rel="noopener">{arc ? "Buka arsip di Google Drive ↗" : <img className="proof" src={u} alt={`Foto ${t.toLowerCase()}`} />}</a><figcaption className="meta">{t}</figcaption></figure>)}</div></div>}
       <div><div className="lbl">Link lacak</div><div className="linkbox"><code>{link}</code><button className="btn ghost sm" onClick={() => copy(link, toast)}>Salin link</button></div>
       {grp && <div><div className="lbl">Link grup · semua kiriman dari {o.sender}</div><div className="linkbox"><code>{grp}</code><button className="btn ghost sm" onClick={() => copy(grp, toast)}>Salin link</button></div></div>}
         {!o.phone && <p className="note" style={{ marginTop: 6 }}>Penerima tidak punya No HP. Bagikan link ini manual ke nomor yang ada.</p>}</div>

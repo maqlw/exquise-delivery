@@ -521,3 +521,4 @@ ol.stops li:first-child{border-top:0}
 .frame-inner.side-mini .who{padding:12px 0 4px;justify-content:center}
 }
 @media (max-width:900px){.side-toggle{display:none}}
+.proofs{display:flex;gap:12px;flex-wrap:wrap}.proofs figure{margin:0}.proofs figcaption{margin-top:4px}

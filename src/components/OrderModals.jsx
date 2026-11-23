@@ -87,13 +87,28 @@ export function UpdateChoice({ order, onClose, onKirim, onSampai }) {
   );
 }
 
-export function SampaiForm({ order, onClose, onSave }) {
+// Foto bukti dari kamera atau galeri: kurir bisa memotret dulu saat sinyal jelek, lalu upload setelah sinyal kembali.
+function PhotoPick({ id, label, hint, prev, onPick }) {
+  const pick = e => { const f = e.target.files[0]; e.target.value = ""; if (f) onPick(f); };
+  return (<div className="fld"><span className="flabel">{label}</span><span className="meta">{hint}</span>
+    <div className="row" style={{ marginTop: 6 }}><label className="btn ghost sm" htmlFor={id + "-cam"}>Kamera</label><label className="btn ghost sm" htmlFor={id + "-gal"}>Galeri</label>
+      <input type="file" id={id + "-cam"} accept="image/*" capture="environment" hidden onChange={pick} />
+      <input type="file" id={id + "-gal"} accept="image/*" hidden onChange={pick} /></div>
+    {prev && <img className="proof" src={prev} alt={`Pratinjau ${label.toLowerCase()}`} style={{ marginTop: 6 }} />}</div>);
+}
+
+// need = foto sebelum & sesudah wajib (kurir). Admin yang menandai sampai untuk pihak ketiga boleh tanpa foto.
+export function SampaiForm({ order, onClose, onSave, need }) {
   const [name, setName] = useState(order.receivedBy || order.recipient), [rel, setRel] = useState(order.receivedRel || REL[0]);
-  const [file, setFile] = useState(null), [prev, setPrev] = useState(order.archived ? null : order.proof), [err, setErr] = useState(""), [busy, setBusy] = useState(false);
+  const [files, setFiles] = useState({}), [prev, setPrev] = useState({ before: order.beforeArchived ? null : order.proofBefore, after: order.archived ? null : order.proof });
+  const [err, setErr] = useState(""), [busy, setBusy] = useState(false);
+  const pick = k => f => { setFiles(x => ({ ...x, [k]: f })); setPrev(x => ({ ...x, [k]: URL.createObjectURL(f) })); };
   async function save() {
     if (!name.trim()) return setErr("Nama penerima barang wajib diisi.");
+    const miss = need ? [["before", "sebelum diserahkan"], ["after", "sesudah diterima"]].filter(([k]) => !files[k] && !prev[k]).map(x => x[1]) : [];
+    if (miss.length) return setErr(`Foto ${miss.join(" dan ")} wajib diisi.`);
     setBusy(true); setErr("");
-    try { await onSave({ name: name.trim(), rel, file }); } catch (x) { setErr(x.message); setBusy(false); }
+    try { await onSave({ name: name.trim(), rel, file: files.after, fileBefore: files.before }); } catch (x) { setErr(x.message + (/fetch|network|timeout|failed/i.test(x.message) ? " · Sinyal bermasalah: coba Simpan lagi, foto tidak perlu diulang." : "")); setBusy(false); }
   }
   return (
     <Modal title={`Pesanan sampai · ${order.code}`} onClose={onClose}
@@ -103,10 +118,8 @@ export function SampaiForm({ order, onClose, onSave }) {
         <Field id="s-rel" full label="Siapa yang menerima? *"><select id="s-rel" value={rel} onChange={e => { const v = e.target.value; setRel(v);
           if (v === REL[0]) setName(order.recipient); else if (name.trim() === order.recipient) setName(""); /* diterima orang lain: nama wajib diisi ulang */ }}>{REL.map(r => <option key={r}>{r}</option>)}</select></Field>
         <Field id="s-name" full label={rel === REL[0] ? "Nama penerima barang *" : `Nama yang menerima (${rel.toLowerCase()}) *`}><input id="s-name" value={name} onChange={e => setName(e.target.value)} autoComplete="off" placeholder={rel === REL[0] ? order.recipient : "mis. Aldi"} /></Field>
-        <div className="fld full"><span className="flabel">Foto bukti terima</span>
-          <div className="row"><label className="btn ghost" htmlFor="s-photo">Ambil / pilih foto</label>
-            <input type="file" id="s-photo" accept="image/*" capture="environment" hidden onChange={e => { const f = e.target.files[0]; if (f) { setFile(f); setPrev(URL.createObjectURL(f)); } }} />
-            {prev && <img className="proof" src={prev} alt="Pratinjau foto bukti" />}</div></div>
+        <PhotoPick id="s-before" label={`Foto sebelum diserahkan${need ? " *" : ""}`} hint="Kue di depan alamat, sebelum diberikan" prev={prev.before} onPick={pick("before")} />
+        <PhotoPick id="s-after" label={`Foto sesudah diterima${need ? " *" : ""}`} hint="Penerima / satpam memegang kue" prev={prev.after} onPick={pick("after")} />
       </div>
       {err && <p className="ferr" role="alert">{err}</p>}
     </Modal>

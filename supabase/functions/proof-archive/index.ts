@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
   for (const r of rows) {
     const { data: blob } = await db.storage.from("proofs").download(r.proof_path);
     if (!blob) continue; // file hilang: biarkan, dicoba lagi nanti
-    items.push({ row: r, name: `${clean(r.code)}_${clean(r.recipient)}.jpg`, date: jakartaDate(r.delivered_at), b64: encodeBase64(new Uint8Array(await blob.arrayBuffer())) });
+    items.push({ row: r, name: `${clean(r.code)}_${clean(r.recipient)}${r.col === "proof_before_path" ? "_sebelum" : ""}.jpg`, date: jakartaDate(r.delivered_at), b64: encodeBase64(new Uint8Array(await blob.arrayBuffer())) });
   }
   const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ secret, items: items.map(({ name, date, b64 }) => ({ name, date, b64 })) }) })
     .then(r => r.json()).catch(e => ({ ok: false, error: String(e) }));
@@ -39,7 +39,8 @@ Deno.serve(async (req) => {
   for (let i = 0; i < items.length; i++) {
     const id = res.ids?.[i], r = items[i].row;
     if (!id) continue;
-    const { data: upd } = await db.from("orders").update({ proof_path: "drive:" + id }).eq("id", r.id).eq("proof_path", r.proof_path).select("id");
+    const col = r.col || "proof_path"; // foto sesudah diterima (proof_path) atau sebelum diserahkan (proof_before_path)
+    const { data: upd } = await db.from("orders").update({ [col]: "drive:" + id }).eq("id", r.id).eq(col, r.proof_path).select("id");
     if (upd?.length) { await db.storage.from("proofs").remove([r.proof_path]); moved++; }
   }
   return json({ moved, of: rows.length });
