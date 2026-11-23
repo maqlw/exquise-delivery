@@ -39,6 +39,9 @@ const URL_ = Deno.env.get("SUPABASE_URL")!, SERVICE = Deno.env.get("SUPABASE_SER
 // WhatsApp lewat fungsi notify yang sama (template dari Pengaturan), dipanggil sebagai server.
 const notify = (order_id: string, kind: string) => fetch(`${URL_}/functions/v1/notify`, { method: "POST", headers: { Authorization: `Bearer ${SERVICE}`, "Content-Type": "application/json" }, body: JSON.stringify({ order_id, kind }) }).then(r => r.json()).catch(e => ({ error: String(e) }));
 
+// Detail order Lalamove tidak memberi ID per alamat, jadi alamat ditandai urutannya: "#1", "#2", ... (#0 = outlet).
+// Nilai lama (stopId dari quotation) tetap dicoba supaya data lama tidak rusak.
+const stopOf = (r: any, key: string) => /^#\d+$/.test(key) ? (r.stops || [])[+key.slice(1)] : (r.stops || []).find((s: any) => s.stopId === key);
 // Status order diambil ulang dari API Lalamove (bukan dari isi webhook), lalu diterapkan ke semua pesanan di order itu.
 async function sync(db: any, o: any) {
   const { data: list } = await db.from("orders").select("*").eq("llm_order_id", o.llm_order_id);
@@ -47,7 +50,7 @@ async function sync(db: any, o: any) {
   return { r, wa };
 }
 async function syncOne(db: any, o: any, r: any) {
-  const multi = !!o.llm_stop_id, stop = multi ? (r.stops || []).find((s: any) => s.stopId === o.llm_stop_id) : (r.stops || []).at(-1);
+  const multi = !!o.llm_stop_id, stop = multi ? stopOf(r, o.llm_stop_id) : (r.stops || []).at(-1);
   const pod = stop?.POD || {}, done = multi ? ["DELIVERED", "SIGNED"].includes(pod.status) || (r.status === "COMPLETED" && pod.status !== "FAILED") : r.status === "COMPLETED";
   await db.from("orders").update({ llm_status: r.status, ext_link: r.shareLink || o.ext_link }).eq("id", o.id);
   const wa: any = {};
@@ -132,7 +135,7 @@ Deno.serve(async (req) => {
       if (!id) return json({ error: "Order ID Lalamove kosong" }, 400);
       try {
         const r = await llm("GET", `/v3/orders/${id}`);
-        return json({ found: true, status: r.status, price: r.priceBreakdown?.total, currency: r.priceBreakdown?.currency, stops: (r.stops || []).length, pod: (r.stops || []).filter((x: any) => x.POD?.image).length, share_link: r.shareLink });
+        return json({ found: true, status: r.status, price: r.priceBreakdown?.total, currency: r.priceBreakdown?.currency, stops: (r.stops || []).length, pod: (r.stops || []).filter((x: any) => x.POD?.image).length, stop_keys: Object.keys(r.stops?.[1] || {}), share_link: r.shareLink });
       } catch (e) { return json({ found: false, error: String((e as Error).message || e) }); }
     }
     if (action === "quote_multi" || action === "book_multi") { // 1 driver ke banyak alamat dari outlet yang sama
@@ -165,7 +168,7 @@ Deno.serve(async (req) => {
       const noPhone = list.filter((_: any, i: number) => !recipients[i].phone); if (noPhone.length) return json({ error: `Tanpa No HP penerima/pemesan: ${noPhone.map((x: any) => by[x.order_id].code).join(", ")}` }, 400);
       const r = await llm("POST", "/v3/orders", { quotationId: quotation_id, isPODEnabled: true, sender: { stopId: sender_stop, name: `Exquise ${org.short}`, phone: senderPhone }, recipients, metadata: { codes: os.map((o: any) => o.code).join(",").slice(0, 200) } });
       const share = Math.round(Number(r.priceBreakdown?.total || 0) / os.length) || null; // ongkir dibagi rata per pesanan untuk laporan
-      for (const x of list) await db.from("orders").update({ via: "lalamove", llm_order_id: r.orderId, llm_stop_id: x.stop_id, llm_status: r.status, llm_price: share, llm_service: service || null, ext_link: r.shareLink || null }).eq("id", x.order_id);
+      for (const [i, x] of list.entries()) await db.from("orders").update({ via: "lalamove", llm_order_id: r.orderId, llm_stop_id: `#${i + 1}`, llm_status: r.status, llm_price: share, llm_service: service || null, ext_link: r.shareLink || null }).eq("id", x.order_id);
       return json({ order_id: r.orderId, status: r.status, price: r.priceBreakdown?.total, share_link: r.shareLink });
     }
     const { data: o } = await db.from("orders").select("*, origins(*)").eq("id", order_id).maybeSingle();
@@ -200,14 +203,15 @@ Deno.serve(async (req) => {
       let r: any; try { r = await llm("GET", `/v3/orders/${id}`); } catch { return json({ error: "Order ID tidak ditemukan di akun Lalamove ini. Cek lagi nomornya." }, 404); }
       const drops = (r.stops || []).slice(1), hp = (p: unknown) => String(p ?? "").replace(/\D/g, "").replace(/^0/, "62");
       // 1 order Lalamove bisa berisi beberapa alamat: cocokkan lewat No HP penerima, kalau tidak bisa admin memilih alamatnya.
-      let stop = drops.length === 1 ? drops[0] : drops.find((x: any) => x.stopId === payload.stop_id);
-      if (!stop && o.recipient_phone) { const hit = drops.filter((x: any) => hp(x.phone) === hp(o.recipient_phone)); if (hit.length === 1) stop = hit[0]; }
-      if (!stop) {
+      const key = (i: number) => `#${i + 1}`; // urutan alamat di order (lihat stopOf)
+      let at = drops.length === 1 ? 0 : drops.findIndex((_: any, i: number) => key(i) === payload.stop_id);
+      if (at < 0 && o.recipient_phone) { const hit = drops.flatMap((x: any, i: number) => hp(x.phone) === hp(o.recipient_phone) ? [i] : []); if (hit.length === 1) at = hit[0]; }
+      if (at < 0) {
         const { data: used } = await db.from("orders").select("code, llm_stop_id").eq("llm_order_id", id);
-        return json({ choose: drops.map((x: any) => ({ stop_id: x.stopId, address: x.address || "", name: x.name || "", used: (used || []).find((u: any) => u.llm_stop_id === x.stopId)?.code || null })) });
+        return json({ choose: drops.map((x: any, i: number) => ({ stop_id: key(i), address: x.address || "", name: x.name || "", used: (used || []).find((u: any) => u.llm_stop_id === key(i))?.code || null })) });
       }
       const total = Number(r.priceBreakdown?.total || 0);
-      await db.from("orders").update({ via: "lalamove", llm_order_id: id, llm_stop_id: drops.length > 1 ? stop.stopId : null, llm_status: r.status, llm_price: total ? Math.round(total / Math.max(1, drops.length)) : null, ext_link: r.shareLink || o.ext_link }).eq("id", o.id);
+      await db.from("orders").update({ via: "lalamove", llm_order_id: id, llm_stop_id: drops.length > 1 ? key(at) : null, llm_status: r.status, llm_price: total ? Math.round(total / Math.max(1, drops.length)) : null, ext_link: r.shareLink || o.ext_link }).eq("id", o.id);
       const { wa } = await sync(db, { ...o, llm_order_id: id });
       return json({ status: r.status, stops: drops.length, wa });
     }
