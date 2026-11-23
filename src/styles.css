@@ -522,3 +522,20 @@ ol.stops li:first-child{border-top:0}
 }
 @media (max-width:900px){.side-toggle{display:none}}
 .proofs{display:flex;gap:12px;flex-wrap:wrap}.proofs figure{margin:0}.proofs figcaption{margin-top:4px}
+/* Login: foto produk melingkari form (Ring di Login.jsx) */
+.frame-inner.lg{position:relative;overflow:hidden;justify-content:center;align-items:center}
+.lg-stage{position:absolute;inset:0;perspective:1000px}
+.lg-ring,.lg-spin{position:absolute;inset:0;transition:transform .8s cubic-bezier(.22,1,.36,1)}
+.lg-spin.on{animation:lg-spin 140s linear infinite}
+@keyframes lg-spin{to{transform:rotate(360deg)}}
+.lg-card{position:absolute;left:50%;top:50%;width:76px;height:106px;transition:transform 1.4s cubic-bezier(.22,1,.36,1),opacity .8s ease}
+.lg-flip{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .6s cubic-bezier(.34,1.56,.64,1)}
+.lg-card:hover .lg-flip{transform:rotateY(180deg)}
+.lg-flip img,.lg-back{position:absolute;inset:0;width:100%;height:100%;border-radius:12px;backface-visibility:hidden;box-shadow:0 10px 24px rgba(0,0,0,.35)}
+.lg-flip img{object-fit:cover}
+.lg-back{transform:rotateY(180deg);display:grid;place-items:center;background:#1d2a22;border:1px solid var(--side-line);color:#fff;font:700 11px var(--f-display);letter-spacing:.08em;text-transform:uppercase}
+.lg-form{position:relative;z-index:1;width:min(400px,calc(100% - 32px));margin:16px;animation:lg-in .9s .5s cubic-bezier(.22,1,.36,1) both}
+@keyframes lg-in{from{opacity:0;transform:translateY(20px);filter:blur(10px)}}
+@media (max-width:900px){.frame-inner.lg{min-height:100vh;min-height:100dvh}}
+@media (max-width:719px){.frame-inner.lg{justify-content:flex-start}.lg-form{margin-top:190px}}
+@media (prefers-reduced-motion:reduce){.lg-card,.lg-flip,.lg-ring,.lg-spin{transition:none!important;animation:none!important}.lg-form{animation:none}}
