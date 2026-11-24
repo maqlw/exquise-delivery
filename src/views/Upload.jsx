@@ -1,27 +1,28 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
-import { Pill, Phone, Search } from "../components/ui.jsx";
+import { Pill, Phone, Search, Modal } from "../components/ui.jsx";
 import { AreaPicker } from "../components/AreaPicker.jsx";
 import { VIA, status, batchOf, routable, hhmm, dmy, readSheets, buildOrders, recompute } from "../lib/logic.js";
-import { saveUpload, updateOrder, toDb } from "../lib/api.js";
+import { saveUpload, updateOrder, toDb, uploadHistory, uploadFile } from "../lib/api.js";
 
 const FILTERS = [["all", "Semua"], ["draft", "Belum dikirim"], ["jalan", "Dikirim"], ["sampai", "Sampai"], ["cek", "Perlu dicek"], ["pihak3", "Pihak ketiga"], ["pickup", "Pick up"]];
 const isLocked = o => ["jalan", "sampai", "gagal", "siap"].includes(o.ship);
 const inFilter = (o, f) => { const s = status(o); return f === "all" || (f === "draft" ? ["draft", "siap"].includes(s) : s === f); };
 
 export default function Upload({ orders, origins, couriers, date, dates, setDate, ui, setUi, reload, toast, act, locked }) {
-  const [sel, setSel] = useState(() => new Set()), [bulk, setBulk] = useState({ via: "", origin: "", batch: "" }), [q, setQ] = useState(""), [busy, setBusy] = useState(false), [over, setOver] = useState(false), [errors, setErrors] = useState(null);
+  const [sel, setSel] = useState(() => new Set()), [bulk, setBulk] = useState({ via: "", origin: "", batch: "" }), [q, setQ] = useState(""), [busy, setBusy] = useState(false), [hist, setHist] = useState(0), [over, setOver] = useState(false), [errors, setErrors] = useState(null);
   async function readFile(f) {
     if (!f) return;
     setBusy(true); setErrors(null);
     try {
-      const wb = XLSX.read(await f.arrayBuffer(), { type: "array", cellDates: true }), best = readSheets(XLSX, wb);
+      const buf = await f.arrayBuffer(), wb = XLSX.read(buf, { type: "array", cellDates: true }), best = readSheets(XLSX, wb);
       if (!best?.rows.length) throw new Error("Tidak menemukan tabel pengiriman. Pastikan ada kolom No Pengiriman dan Alamat.");
       // Jaga-jaga: kalau sheet Matrix (kolom NAMA + kolom driver) tidak ketemu, jangan diam-diam pakai sheet lain.
-      if (!best.matrix && !confirm(`Sheet yang terbaca: "${best.name}" — BUKAN format Matrix, jadi nama driver dan batch dari Excel TIDAK terbaca (sheet di file: ${wb.SheetNames.join(", ")}).\n\nCek judul kolom di Sheet1: NO PENGIRIMAN, NAMA, ALAMAT, WORDING, lalu kolom driver tepat di sebelah WORDING.\n\nTetap simpan tanpa driver?`)) { setBusy(false); return toast("Upload dibatalkan. Perbaiki judul kolom di Sheet1 lalu upload lagi."); }
+      if (!best.matrix && !confirm(`Sheet yang terbaca: "${best.name}" — BUKAN format Matrix, jadi nama driver dan batch dari Excel TIDAK terbaca (sheet di file: ${wb.SheetNames.join(", ")}).\n\n${wb.SheetNames.length === 1 ? "File ini kemungkinan file export ESB yang BELUM ada Sheet1 Matrix-nya. Pilih file Matrix yang sudah diisi nama driver." : "Cek judul kolom di Sheet1: NO PENGIRIMAN, NAMA, ALAMAT, WORDING, lalu kolom driver tepat di sebelah WORDING."}\n\nTetap simpan tanpa driver?`)) { setBusy(false); return toast("Upload dibatalkan. Pilih file Matrix yang benar (ada Sheet1 berisi nama driver) lalu upload lagi."); }
       const r = buildOrders(best.rows, Object.values(origins), couriers);
-      await saveUpload(f.name, best.name, best.rows.length, r.orders);
-      setErrors({ file: f.name, sheet: best.name, saved: r.orders.length, list: r.errors, matrix: best.matrix, drivers: r.orders.filter(o => o.courierForced).length });
+      const drivers = r.orders.filter(o => o.courierForced).length;
+      await saveUpload(f.name, best.name, best.rows.length, r.orders, { matrix: !!best.matrix, drivers, sheets: wb.SheetNames, file_b64: buf.byteLength <= 5e6 ? b64(buf) : null }); // shortcut: file > 5 MB tidak disimpan di riwayat, pindah ke Storage kalau file sebesar itu jadi biasa
+      setErrors({ file: f.name, sheet: best.name, saved: r.orders.length, list: r.errors, matrix: best.matrix, drivers }); setHist(h => h + 1);
       toast(`${r.orders.length} pesanan disimpan dari ${f.name}`);
       await reload(r.ref || date);
     } catch (e) { toast(e.message); }
@@ -63,7 +64,7 @@ export default function Upload({ orders, origins, couriers, date, dates, setDate
       {errors.file} (sheet "{errors.sheet}"): {errors.saved} pesanan disimpan{errors.matrix ? `, ${errors.drivers} langsung dapat driver dari Excel` : " · TANPA driver (bukan format Matrix)"}.
       {errors.list.length > 0 && <> {errors.list.length} baris tidak disimpan: {errors.list.slice(0, 5).map(e => `baris ${e.row} ${e.code} (${e.reason})`).join("; ")}{errors.list.length > 5 ? "; …" : ""}.</>}
     </div>);
-  if (!orders.length) return (<>{head}{report}
+  if (!orders.length) return (<>{head}{report}<UploadHistory key={hist} toast={toast} />
     <label className={`drop ${over ? "over" : ""}`} htmlFor="file" style={{ marginTop: 16, cursor: "pointer" }}
       onDragOver={e => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={e => { e.preventDefault(); setOver(false); readFile(e.dataTransfer.files[0]); }}>
       <h2>Tarik file Excel ke sini, atau klik untuk memilih</h2>
@@ -74,7 +75,7 @@ export default function Upload({ orders, origins, couriers, date, dates, setDate
   const words = q.toLowerCase().split(/\s+/).filter(Boolean), hay = o => [o.code, o.gd, o.sender, o.recipient, o.phone, o.phoneSender, o.address, o.item, o.area].join(" ").toLowerCase();
   const vis = orders.filter(o => inFilter(o, ui.filter) && words.every(w => hay(o).includes(w))), ready = orders.filter(routable).length;
   return (<>
-    {head}{report}
+    {head}{report}<UploadHistory key={hist} toast={toast} />
     <div className="kpis" style={{ marginTop: 16 }}>
       <div className="kpi ok"><span>Siap dirute</span><b>{ready}</b></div><div className="kpi warn"><span>Perlu dicek</span><b>{c.cek || 0}</b></div>
       <div className="kpi"><span>Dikirim / sampai</span><b>{c.jalan || 0} / {c.sampai || 0}</b></div><div className="kpi"><span>Tanpa No HP</span><b>{orders.filter(o => !o.phone && o.via !== "pickup").length}</b></div></div>
@@ -109,4 +110,36 @@ export default function Upload({ orders, origins, couriers, date, dates, setDate
           <td data-label="Aksi" className="full"><div className="acts"><button className="btn primary sm" onClick={() => act.update(o)}>Update</button><button className="btn ghost sm" onClick={() => act.edit(o)}>Edit</button><button className="btn ghost sm danger" onClick={() => act.hapus(o)}>Hapus</button></div></td>
         </tr>); }) : <tr><td colSpan="13" className="meta">{q ? `Tidak ada pesanan yang cocok dengan "${q}".` : "Tidak ada pesanan untuk filter ini."}</td></tr>}</tbody></table></div>
   </>);
+}
+
+const b64 = buf => { const u = new Uint8Array(buf); let s = ""; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(s); };
+const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+// Riwayat upload 7 hari: siapa, kapan, sheet mana yang terbaca, dan isi file aslinya.
+function UploadHistory({ toast }) {
+  const [list, setList] = useState(null), [view, setView] = useState(null);
+  useEffect(() => { uploadHistory().then(setList).catch(e => toast(e.message)); }, []);
+  async function open(u) {
+    try { const data = await uploadFile(u.id), wb = XLSX.read(data, { type: "base64" }); setView({ u, data, wb, sheet: wb.SheetNames.includes(u.sheet) ? u.sheet : wb.SheetNames[0] }); }
+    catch (e) { toast("Gagal membuka file: " + e.message); }
+  }
+  const when = d => new Date(d).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  const rows = view ? XLSX.utils.sheet_to_json(view.wb.Sheets[view.sheet], { header: 1, raw: false, defval: "", blankrows: false }) : [];
+  return (<details className="panel" style={{ marginTop: 16 }}><summary style={{ cursor: "pointer" }}><b>Riwayat upload</b> <span className="meta">· 7 hari terakhir · {list ? `${list.length} file` : "…"}</span></summary>
+    {!list ? <p className="note">Memuat…</p> : !list.length ? <p className="note">Belum ada upload dalam 7 hari terakhir.</p>
+      : <div className="tablewrap" style={{ marginTop: 10 }}><table className="rtable"><thead><tr><th>Waktu</th><th>Oleh</th><th>File</th><th>Sheet terbaca</th><th>Pesanan</th><th>Dapat driver</th><th /></tr></thead><tbody>
+        {list.map(u => <tr key={u.id}><td data-label="Waktu">{when(u.created_at)}</td><td data-label="Oleh">{u.uploader || "–"}</td>
+          <td data-label="File"><div className="addr">{u.file_name}</div>{u.sheets?.length > 1 && <div className="meta">isi file: {u.sheets.join(", ")}</div>}</td>
+          <td data-label="Sheet terbaca">{u.sheet} {u.matrix === false ? <Pill s="bad">bukan Matrix</Pill> : u.matrix ? <Pill s="ok">Matrix</Pill> : null}</td>
+          <td data-label="Pesanan">{u.row_count}</td><td data-label="Dapat driver">{u.drivers ?? "–"}</td>
+          <td data-label="">{u.has_file ? <button className="btn ghost sm" onClick={() => open(u)}>Lihat isi</button> : <span className="meta">file tidak tersimpan</span>}</td></tr>)}
+      </tbody></table></div>}
+    <p className="note">Riwayat dan file otomatis terhapus setelah 7 hari. Supaya kelihatan siapa yang upload, tiap orang pakai akunnya sendiri (Pengaturan → Akun).</p>
+    {view && <Modal title={view.u.file_name} onClose={() => setView(null)}
+      footer={<><a className="btn ghost" download={view.u.file_name} href={`data:${XLSX_TYPE};base64,${view.data}`}>Unduh file</a><button className="btn primary" onClick={() => setView(null)}>Tutup</button></>}>
+      <p className="meta">Diupload {when(view.u.created_at)} oleh {view.u.uploader || "–"} · sheet yang dibaca sistem: <b>{view.u.sheet}</b></p>
+      <div className="seg" role="group" aria-label="Sheet" style={{ margin: "8px 0" }}>{view.wb.SheetNames.map(n => <button key={n} aria-pressed={n === view.sheet} onClick={() => setView({ ...view, sheet: n })}>{n}{n === view.u.sheet ? " · dibaca" : ""}</button>)}</div>
+      <div className="tablewrap xview"><table className="xtable"><tbody>{rows.slice(0, 300).map((r, i) => <tr key={i}><td className="meta">{i + 1}</td>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody></table></div>
+      {rows.length > 300 && <p className="note">Menampilkan 300 baris pertama dari {rows.length}. Unduh file untuk melihat semuanya.</p>}
+    </Modal>}
+  </details>);
 }

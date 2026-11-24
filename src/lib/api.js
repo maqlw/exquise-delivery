@@ -48,11 +48,15 @@ export async function shipDates() {
   const rows = must(await sb.from("orders").select("ship_date").order("ship_date", { ascending: false }).limit(1000));
   return [...new Set(rows.map(r => r.ship_date))];
 }
-export async function saveUpload(fileName, sheet, rowCount, list) {
-  const up = must(await sb.from("uploads").insert({ file_name: fileName, sheet, row_count: rowCount }).select("id").single());
+// extra: { matrix, drivers, sheets, file_b64 } untuk riwayat upload 7 hari (nama pengunggah diisi server).
+export async function saveUpload(fileName, sheet, rowCount, list, extra = {}) {
+  const up = must(await sb.from("uploads").insert({ file_name: fileName, sheet, row_count: rowCount, ...extra }).select("id").single());
   for (let i = 0; i < list.length; i += 200)
     must(await sb.from("orders").upsert(list.slice(i, i + 200).map(o => ({ ...toDb(o), upload_id: up.id, row_no: o.rowNo, ...(o.courierForced !== undefined && { assigned_courier: o.courierForced }) })), { onConflict: "code" }));
 }
+export const uploadHistory = async () => must(await sb.from("uploads").select("id, file_name, sheet, row_count, uploader, matrix, drivers, sheets, has_file, created_at")
+  .gte("created_at", new Date(Date.now() - 7 * 864e5).toISOString()).order("created_at", { ascending: false }));
+export const uploadFile = async id => must(await sb.from("uploads").select("file_b64").eq("id", id).single()).file_b64;
 export const insertOrder = async o => must(await sb.from("orders").insert(toDb(o)).select("*").single());
 export const updateOrder = async (id, patch) => must(await sb.from("orders").update(patch).eq("id", id).select("*").single());
 export const deleteOrder = async id => must(await sb.from("orders").delete().eq("id", id));

@@ -539,3 +539,7 @@ ol.stops li:first-child{border-top:0}
 @media (max-width:900px){.frame-inner.lg{min-height:100vh;min-height:100dvh}}
 @media (max-width:719px){.frame-inner.lg{justify-content:flex-start}.lg-form{margin-top:190px}}
 @media (prefers-reduced-motion:reduce){.lg-card,.lg-flip,.lg-ring,.lg-spin{transition:none!important;animation:none!important}.lg-form{animation:none}}
+/* Riwayat upload: isi file Excel */
+.sheet:has(.xview){width:min(1100px,96vw);max-width:none}
+.xview{max-height:60vh;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.xtable{border-collapse:collapse;font-size:12px}.xtable td{border:1px solid var(--line);padding:4px 6px;white-space:nowrap;max-width:280px;overflow:hidden;text-overflow:ellipsis}
