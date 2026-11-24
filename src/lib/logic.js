@@ -136,11 +136,13 @@ export function parseDate(v) {
 export const COLSPEC = [
   ["phoneSender", /^no\.?\s*(hp\s*)?pengirim$/], ["phone", /^phone$|^no\.?\s*(hp\s*)?penerima$/],
   ["gd", /goods delivery number|^no\.?\s*pengiriman/], ["date", /goods delivery date|^tanggal/],
-  ["sender", /^sender( name)?$|^pengirim$/], ["recipient", /customer name|^nama$|^penerima$/],
-  ["address", /^address$|^alamat$/], ["item", /product|^item$/], ["notes", /^notes$|^wording$/],
+  ["sender", /^sender( name)?$|^(nama )?pengirim$/], ["recipient", /customer name|^nama( penerima)?$|^penerima$/],
+  ["address", /^address|^alamat/], ["item", /product|^item$/], ["notes", /^notes$|^wording$/],
   ["origin", /lokasi asal|^origin$/], ["batch", /^batch/], ["via", /kirim via|^via$/],
 ];
-const isHead = r => r.some(c => /goods delivery number|^no\.?\s*pengiriman/i.test(String(c ?? "").trim())) && r.some(c => /^(alamat|address)$/i.test(String(c ?? "").trim()));
+const isHead = r => r.some(c => /goods delivery number|^no\.?\s*pengiriman/i.test(String(c ?? "").trim())) && r.some(c => /^(alamat|address)/i.test(String(c ?? "").trim()));
+// Label kelompok batch di kolom driver, tahan salah ketik: "BATCH 2", "BACH 2", "BATH 2", "Batch-2".
+const BATCH_LABEL = /\bbat?c?h\s*-?\s*([123])\b/i;
 export function readSheets(XLSX, wb) {
   let best = null;
   for (const name of wb.SheetNames) {
@@ -148,9 +150,9 @@ export function readSheets(XLSX, wb) {
     const hi = aoa.findIndex(isHead); if (hi < 0) continue;
     const map = {};
     aoa[hi].forEach((c, j) => { const h = String(c ?? "").trim().toLowerCase(); const s = COLSPEC.find(([k, re]) => !(k in map) && re.test(h)); if (s) map[s[0]] = j; });
-    const matrix = map.recipient != null && /^nama$/i.test(String(aoa[hi][map.recipient] ?? "").trim());
+    const matrix = map.recipient != null && /^nama/i.test(String(aoa[hi][map.recipient] ?? "").trim()); // Matrix berjudul Indonesia ("NAMA"); sheet Report berjudul "Customer Name"
     // Matrix: kolom setelah WORDING berisi nama driver / "BATCH 2" / "PICK UP OUTLET / LALAMOVE", di-merge per kelompok -> berlaku untuk baris di bawahnya.
-    const gc = matrix && map.notes != null ? map.notes + 1 : null, bt = v => String(v ?? "").match(/batch\s*([123])/i);
+    const gc = matrix && map.notes != null ? map.notes + 1 : null, bt = v => String(v ?? "").match(BATCH_LABEL);
     let grp = "", gb = null;
     if (gc != null) for (let i = 0; i <= hi; i++) { const m = bt(aoa[i][gc]); if (m) gb = +m[1]; }
     const rows = aoa.slice(hi + 1).map(r => {
@@ -159,7 +161,7 @@ export function readSheets(XLSX, wb) {
       return o;
     }).filter(r => [r.address, r.recipient, r.item].some(v => v != null && String(v).trim() !== ""));
     const score = rows.length + (matrix ? 1e6 : 0); // format Matrix (Sheet1) diutamakan
-    if (!best || score > best.score) best = { name, rows, score };
+    if (!best || score > best.score) best = { name, rows, score, matrix };
   }
   return best;
 }
@@ -210,19 +212,23 @@ export function buildOrders(rows, origins = [], couriers = []) {
     const og = t("origin").toLowerCase(), hit = og && origins.find(x => [x.id, x.short, x.name].some(n => n && (og.includes(n.toLowerCase()) || n.toLowerCase().includes(og))));
     o.origin = hit ? hit.id : (origins.find(x => x.id === "ck") || origins[0])?.id || "ck";
     const b = t("batch").match(/[123]/); o.batchReq = b ? +b[0] : null;
-    const g = t("group"), gVia = /pick ?up|lalamove|gosend|gojek|grab|borzo/i.test(g), gBatch = /batch\s*[123]/i.test(g);
+    const g = t("group"), gVia = /pick ?up|lalamove|gosend|gojek|grab|borzo/i.test(g), gBatch = BATCH_LABEL.test(g);
     const v = (t("via") || (gVia ? g : "")).toLowerCase(), ext = Object.entries(VIA).find(([k, n]) => !BUILTIN_VIA.includes(k) && v.includes(n.toLowerCase()));
     o.via = ext ? ext[0] : /lalamove/.test(v) ? "lalamove" : /gosend|gojek/.test(v) ? "gosend" : /grab/.test(v) ? "grab" : /pick/.test(v) ? "pickup" : "internal";
     o.reqTime = null; o.areaManual = null;
+    let gOrg = null;
     if ("group" in r) { // format Matrix: driver & batch dari kolom kelompok
-      const c = g && !gVia && !gBatch ? matchCourier(g, couriers) : null;
+      let c = g && !gVia && !gBatch ? matchCourier(g, couriers) : null;
+      // Label outlet (mis. "DEPOK"): pesanan dari outlet itu; kalau outlet hanya punya 1 kurir aktif, langsung ke kurir tersebut.
+      gOrg = g && !gVia && !gBatch && !c ? origins.find(x => g.toUpperCase().split(/[^A-Z0-9]+/).some(w => w && [x.id, x.short].some(n => n && nm(n) === w))) : null;
+      if (gOrg) { if (!hit) o.origin = gOrg.id; const here = couriers.filter(k => k.active !== false && k.origin_id === gOrg.id); if (here.length === 1) c = here[0]; }
       o.courierForced = o.via === "internal" && c ? c.id : null;
       if (o.courierForced && !hit) o.origin = c.origin_id;
       if (o.batchReq == null && o.via === "internal" && r.groupBatch) o.batchReq = r.groupBatch;
     }
     recompute(o);
     if ("group" in r && o.via !== "internal") o.courierForced = null; // ternyata di luar area / pick up
-    if ("group" in r && !o.courierForced && o.via === "internal") o.issues.push(["warn", g && !gBatch ? `Driver "${g}" di Excel tidak ada di menu Kurir` : "Belum ada driver di Excel"]);
+    if ("group" in r && !o.courierForced && o.via === "internal") o.issues.push(["warn", g && !gBatch && !gOrg ? `Driver "${g}" di Excel tidak ada di menu Kurir` : "Belum ada driver di Excel"]);
     if (o.gd) byGd[o.gd] = o; out.push(o);
   });
   out.forEach(o => { if (o.merged > 1) o.issues.push(["info", `Digabung dari ${o.merged} baris (nomor GD sama)`]); });

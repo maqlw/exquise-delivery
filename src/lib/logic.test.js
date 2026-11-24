@@ -127,3 +127,22 @@ test("Pembagian otomatis OFF: kurir & urutan ikut Excel, tanpa driver tidak diba
   assert.equal(P.routes.k2.seq.length, 0);
   assert.deepEqual(P.un.map(o => o.code), ["G1", "G3"]);
 });
+
+test("Excel Matrix tetap terbaca walau judul kolom berubah; BACH 2 = batch 2; DEPOK = outlet Depok", async () => {
+  const XLSX = await import("xlsx"); const { readSheets } = await import("./logic.js");
+  const H = ["NO", "NO PENGIRIMAN", "Tanggal Pengiriman", "PENGIRIM", "NAMA PENERIMA", "ALAMAT PENGIRIMAN", "NO PENERIMA", "ITEM", "WORDING", "7.00"];
+  const row = (i, g, a = "Jl. X, Kemang") => [i, "G" + i, "24/11/2026", "S", "R" + i, a, "", "Kue", "", g];
+  const m = XLSX.utils.aoa_to_sheet([["MATRIX", , , , , , , , , "BATCH 1"], H, row(1, "HANSARI"), row(2, "BACH 2"), row(3, null), row(4, "DEPOK", "Jl. Y, Beji, Depok")]);
+  // sheet Report (judul Inggris, tanpa kolom driver) dengan baris lebih banyak tidak boleh menang
+  const rep = XLSX.utils.aoa_to_sheet([["Goods Delivery Number", "Goods Delivery Date", "Sender Name", "Customer Name", "Address", "Phone", "Product Name", "Notes", ""],
+    ...[1, 2, 3, 4, 5, 6, 7, 8].map(i => ["G" + i, "24/11/2026", "S", "R" + i, "Jl. X, Kemang", "", "Kue", "", "DEPOK"])]);
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, rep, "Report"); XLSX.utils.book_append_sheet(wb, m, "Sheet1");
+  const best = readSheets(XLSX, wb); assert.equal(best.name, "Sheet1"); assert.equal(best.matrix, true);
+  const kur = [{ id: "h", name: "HANSARI", origin_id: "ck" }, { id: "a", name: "ARIF", origin_id: "depok" }];
+  const o = Object.fromEntries(buildOrders(best.rows, [{ id: "ck", short: "CK Gunung Sahari" }, { id: "depok", short: "Depok" }], kur).orders.map(x => [x.code, x]));
+  assert.deepEqual([o.G1.courierForced, o.G1.batchReq], ["h", 1]);
+  assert.deepEqual([o.G2.courierForced, o.G2.batchReq, o.G3.batchReq], [null, 2, 2]);
+  assert.ok(!o.G2.issues.some(([, t]) => /BACH/.test(t)));
+  assert.deepEqual([o.G4.origin, o.G4.courierForced], ["depok", "a"]);
+  assert.equal(readSheets(XLSX, (() => { const w = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(w, rep, "Report"); return w; })()).matrix, false);
+});

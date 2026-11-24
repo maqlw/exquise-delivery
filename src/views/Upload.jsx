@@ -15,11 +15,13 @@ export default function Upload({ orders, origins, couriers, date, dates, setDate
     if (!f) return;
     setBusy(true); setErrors(null);
     try {
-      const best = readSheets(XLSX, XLSX.read(await f.arrayBuffer(), { type: "array", cellDates: true }));
+      const wb = XLSX.read(await f.arrayBuffer(), { type: "array", cellDates: true }), best = readSheets(XLSX, wb);
       if (!best?.rows.length) throw new Error("Tidak menemukan tabel pengiriman. Pastikan ada kolom No Pengiriman dan Alamat.");
+      // Jaga-jaga: kalau sheet Matrix (kolom NAMA + kolom driver) tidak ketemu, jangan diam-diam pakai sheet lain.
+      if (!best.matrix && !confirm(`Sheet yang terbaca: "${best.name}" — BUKAN format Matrix, jadi nama driver dan batch dari Excel TIDAK terbaca (sheet di file: ${wb.SheetNames.join(", ")}).\n\nCek judul kolom di Sheet1: NO PENGIRIMAN, NAMA, ALAMAT, WORDING, lalu kolom driver tepat di sebelah WORDING.\n\nTetap simpan tanpa driver?`)) { setBusy(false); return toast("Upload dibatalkan. Perbaiki judul kolom di Sheet1 lalu upload lagi."); }
       const r = buildOrders(best.rows, Object.values(origins), couriers);
       await saveUpload(f.name, best.name, best.rows.length, r.orders);
-      setErrors({ file: f.name, sheet: best.name, saved: r.orders.length, list: r.errors });
+      setErrors({ file: f.name, sheet: best.name, saved: r.orders.length, list: r.errors, matrix: best.matrix, drivers: r.orders.filter(o => o.courierForced).length });
       toast(`${r.orders.length} pesanan disimpan dari ${f.name}`);
       await reload(r.ref || date);
     } catch (e) { toast(e.message); }
@@ -58,7 +60,7 @@ export default function Upload({ orders, origins, couriers, date, dates, setDate
         <a className="btn primary" href="#dispatch">Susun rute ({orders.filter(routable).length}) →</a></div></div>);
   const report = errors && (
     <div className={`banner ${errors.list.length ? "bad" : "ok"}`} style={{ marginTop: 12 }}>
-      {errors.file} (sheet "{errors.sheet}"): {errors.saved} pesanan disimpan.
+      {errors.file} (sheet "{errors.sheet}"): {errors.saved} pesanan disimpan{errors.matrix ? `, ${errors.drivers} langsung dapat driver dari Excel` : " · TANPA driver (bukan format Matrix)"}.
       {errors.list.length > 0 && <> {errors.list.length} baris tidak disimpan: {errors.list.slice(0, 5).map(e => `baris ${e.row} ${e.code} (${e.reason})`).join("; ")}{errors.list.length > 5 ? "; …" : ""}.</>}
     </div>);
   if (!orders.length) return (<>{head}{report}
