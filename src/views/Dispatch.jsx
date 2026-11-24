@@ -6,7 +6,7 @@ import { BATCH, VIA, status, hhmm, fmtKm, dmy, returnLabel } from "../lib/logic.
 import { updateOrder, sendRoutes, sendExtra, lalamove, reassignOrders } from "../lib/api.js";
 
 export default function Dispatch({ orders, origins, couriers, settings, P, date, ui, setUi, reload, toast, routes, positions, act, locked }) {
-  const [busy, setBusy] = useState(false), [sel, setSel] = useState(new Set()), [q, setQ] = useState(""), [shut, setShut] = useState({}), [pg, setPg] = useState(0);
+  const [busy, setBusy] = useState(false), [sel, setSel] = useState(new Set()), [q, setQ] = useState(""), [shut, setShut] = useState({}), [pg, setPg] = useState(0), [vf, setVf] = useState("");
   useEffect(() => { // tekan "/" untuk langsung mencari
     const f = e => { if (e.key === "/" && !/^(input|textarea|select)$/i.test(document.activeElement?.tagName || "")) { e.preventDefault(); document.querySelector(".dp-search input")?.focus(); } };
     addEventListener("keydown", f); return () => removeEventListener("keydown", f);
@@ -42,7 +42,9 @@ export default function Dispatch({ orders, origins, couriers, settings, P, date,
   const elsewhere = searching ? Object.keys(origins).flatMap(x => [1, 2, 3].map(y => ({ x, y, n: planOrders(x, y).filter(hit).length }))).filter(e => e.n && (e.x !== oid || e.y !== b)) : [];
   const allShut = list.length > 0 && list.every(c => shut[c.id]);
   // Pihak ketiga per 10, yang belum selesai di atas.
-  const PER = 10, fin = o => ["sampai", "gagal"].includes(o.ship) ? 1 : 0, extHit = ext.filter(hit).sort((x, y) => fin(x) - fin(y));
+  // Pihak ketiga per 10, yang belum selesai di atas; bisa disaring per penyedia (Lalamove, Borzo, NCS, ...).
+  const vias = Object.keys(VIA).filter(k => k !== "internal" && k !== "pickup"), vfOn = vias.includes(vf) ? vf : ""; // semua penyedia terdaftar (Pengaturan → Kurir pihak ketiga)
+  const PER = 10, fin = o => ["sampai", "gagal"].includes(o.ship) ? 1 : 0, extHit = ext.filter(o => (!vfOn || o.via === vfOn) && hit(o)).sort((x, y) => fin(x) - fin(y));
   const pages = Math.ceil(extHit.length / PER), p = Math.min(pg, Math.max(0, pages - 1));
   const skip = n => !n || confirm(`${n} alamat belum ada kurir dan tidak ikut dikirim. Kirim yang sudah ada kurirnya?`);
   async function send() {
@@ -121,9 +123,12 @@ export default function Dispatch({ orders, origins, couriers, settings, P, date,
       <div className="row">{B.sent ? <><div className="banner ok" style={{ flex: 1 }}>Rute Batch {b} sudah dikirim ke kurir. Status berubah dari aksi kurir. Kalau kurir berhalangan, pindahkan alamat yang belum selesai lewat pilihan <b>Pindahkan</b> di kartunya.</div><a className="btn ghost" href="#lacak">Pantau di Lacak →</a></>
         : <button className="btn primary big" onClick={send} disabled={!nSend || busy || !list.length || locked}>{busy ? "Mengirim…" : `Kirim rute Batch ${b} ke kurir ${org.short}`}</button>}</div>
       <section className="panel"><h2>Pihak ketiga · {ext.length}{ext.length > 0 && <span className="meta"> · {ext.filter(o => !fin(o)).length} belum selesai</span>}</h2><p className="note">Lalamove: pesan langsung dari sini supaya status, foto bukti & WhatsApp otomatis. Centang 2 pesanan Lalamove atau lebih dari outlet yang sama untuk <b>1 driver banyak alamat</b>. GoSend/Grab: pesan di aplikasinya lalu tempel link tracking.</p>
+        {ext.length > 0 && <div className="seg" role="group" aria-label="Saring penyedia" style={{ margin: "10px 0", flexWrap: "wrap" }}>
+          {["", ...vias].map(k => <button type="button" key={k || "all"} aria-pressed={vfOn === k} onClick={() => { setVf(k); setPg(0); }}>{k ? VIA[k] || k : "Semua"} <small>{k ? ext.filter(o => o.via === k).length : ext.length}</small></button>)}</div>}
         {sel.size >= 2 && <LalamoveMulti list={ext.filter(o => sel.has(o.id))} origins={origins} toast={toast} reload={reload} done={() => setSel(new Set())} />}
         {ext.length ? <><ol className="stops">{extHit.slice(p * PER, p * PER + PER).map(o => <ExtRow key={o.id} o={o} save={save} toast={toast} reload={reload} act={act} org={origins[o.origin]}
           checked={sel.has(o.id)} onCheck={canMulti(o) ? () => { const n = new Set(sel); n.has(o.id) ? n.delete(o.id) : n.add(o.id); setSel(n); } : null} />)}</ol>
+          {!extHit.length && <p className="note">Belum ada pesanan {vfOn ? `lewat ${VIA[vfOn] || vfOn}` : "yang cocok"}.</p>}
           {pages > 1 && <nav className="pager" aria-label="Halaman pihak ketiga"><button type="button" className="btn ghost sm" disabled={!p} onClick={() => setPg(p - 1)}>‹ Sebelumnya</button>
             <span className="meta">{p * PER + 1}–{Math.min(extHit.length, (p + 1) * PER)} dari {extHit.length} · hal {p + 1}/{pages}</span>
             <button type="button" className="btn ghost sm" disabled={p >= pages - 1} onClick={() => setPg(p + 1)}>Berikutnya ›</button></nav>}</> : <p className="note">Belum ada.</p>}</section>

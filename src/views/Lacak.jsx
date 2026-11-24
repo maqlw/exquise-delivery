@@ -69,13 +69,12 @@ export default function Lacak(ctx) {
     <h1>Lacak pesanan</h1><p className="sub">Cari pesanan, lalu klik untuk melihat alurnya, posisi kurir, dan detail lainnya.</p>
     <div className={`lacak ${sel ? "has-sel" : ""}`}>
       <section className="panel list"><Search value={ui.q} onChange={v => setUi({ ...ui, q: v })} placeholder="Cari kode, penerima, pemesan, atau No HP" />
-        <div className="tablewrap"><table className="rtable ltable"><thead><tr><th>Kode</th><th>Penerima</th><th>Pemesan</th><th>Status</th><th>Kiriman</th><th /></tr></thead><tbody>
+        <div className="tablewrap"><table className="rtable ltable"><thead><tr><th>Kode</th><th>Penerima</th><th>Pemesan</th><th>Status</th><th>Kiriman</th></tr></thead><tbody>
           {rows.map(o => { const info = courierInfo(P, couriers, routes, o); return (
-            <tr key={o.id} className={sel === o ? "sel" : ""} onClick={() => setUi({ ...ui, lacak: o.id })}>
+            <tr key={o.id} className={sel === o ? "sel" : ""} tabIndex={0} aria-label={`Lihat ${o.recipient}`} onClick={() => setUi({ ...ui, lacak: o.id })} onKeyDown={e => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), setUi({ ...ui, lacak: o.id }))}>
               <td data-label="Kode"><span className="mono">{o.code}</span></td><td data-label="Penerima"><div className="addr">{o.recipient}</div><Phone p={o.phone} /></td>
-              <td data-label="Pemesan">{o.sender}</td><td data-label="Status"><StatusPill o={o} /></td><td data-label="Kiriman">{info.c ? info.c.name : VIA[o.via]}</td>
-              <td data-label=""><button className="btn ghost sm" onClick={e => { e.stopPropagation(); setUi({ ...ui, lacak: o.id }); }}>Lihat</button></td></tr>); })}
-          {!rows.length && <tr><td colSpan="6" className="meta">Tidak ada pesanan yang cocok.</td></tr>}</tbody></table></div></section>
+              <td data-label="Pemesan">{o.sender}</td><td data-label="Status"><StatusPill o={o} /></td><td data-label="Kiriman">{info.c ? info.c.name : VIA[o.via]}</td></tr>); })}
+          {!rows.length && <tr><td colSpan="5" className="meta">Tidak ada pesanan yang cocok.</td></tr>}</tbody></table></div></section>
       <div className="detail stack">{sel ? <Detail o={sel} ctx={ctx} key={sel.id} /> : <section className="panel empty"><h2>Pilih pesanan</h2><p className="sub">Klik salah satu baris di daftar untuk melihat detailnya.</p></section>}</div>
     </div>
   </>);
