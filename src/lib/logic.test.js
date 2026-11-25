@@ -130,7 +130,7 @@ test("Pembagian otomatis OFF: kurir & urutan ikut Excel, tanpa driver tidak diba
 
 test("Excel Matrix tetap terbaca walau judul kolom berubah; BACH 2 = batch 2; DEPOK = outlet Depok", async () => {
   const XLSX = await import("xlsx"); const { readSheets } = await import("./logic.js");
-  const H = ["NO", "NO PENGIRIMAN", "Tanggal Pengiriman", "PENGIRIM", "NAMA PENERIMA", "ALAMAT PENGIRIMAN", "NO PENERIMA", "ITEM", "WORDING", "7.00"];
+  const H = ["NO", "NO GD", "Tanggal Pengiriman", "PENGIRIM", "NAMA PENERIMA", "ALAMAT PENGIRIMAN", "NO PENERIMA", "ITEM", "WORDING", "7.00"]; // 25/11: "NO PENGIRIMAN" diganti "NO GD"
   const row = (i, g, a = "Jl. X, Kemang") => [i, "G" + i, "24/11/2026", "S", "R" + i, a, "", "Kue", "", g];
   const m = XLSX.utils.aoa_to_sheet([["MATRIX", , , , , , , , , "BATCH 1"], H, row(1, "HANSARI"), row(2, "BACH 2"), row(3, null), row(4, "DEPOK", "Jl. Y, Beji, Depok")]);
   // sheet Report (judul Inggris, tanpa kolom driver) dengan baris lebih banyak tidak boleh menang

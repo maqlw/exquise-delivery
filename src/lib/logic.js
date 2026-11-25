@@ -133,14 +133,16 @@ export function parseDate(v) {
 }
 
 // ---------- baca Excel ----------
+// Kolom nomor pesanan: "Goods Delivery Number", "NO PENGIRIMAN", "NO GD", "NO. GD", "GD", "KODE GD".
+const GD_HEAD = /goods delivery number|^no\.?\s*(pengiriman|gd)\b|^(kode\s*)?gd$/;
 export const COLSPEC = [
   ["phoneSender", /^no\.?\s*(hp\s*)?pengirim$/], ["phone", /^phone$|^no\.?\s*(hp\s*)?penerima$/],
-  ["gd", /goods delivery number|^no\.?\s*pengiriman/], ["date", /goods delivery date|^tanggal/],
+  ["gd", GD_HEAD], ["date", /goods delivery date|^tanggal/],
   ["sender", /^sender( name)?$|^(nama )?pengirim$/], ["recipient", /customer name|^nama( penerima)?$|^penerima$/],
   ["address", /^address|^alamat/], ["item", /product|^item$/], ["notes", /^notes$|^wording$/],
   ["origin", /lokasi asal|^origin$/], ["batch", /^batch/], ["via", /kirim via|^via$/],
 ];
-const isHead = r => r.some(c => /goods delivery number|^no\.?\s*pengiriman/i.test(String(c ?? "").trim())) && r.some(c => /^(alamat|address)/i.test(String(c ?? "").trim()));
+const isHead = r => r.some(c => GD_HEAD.test(String(c ?? "").trim().toLowerCase())) && r.some(c => /^(alamat|address)/i.test(String(c ?? "").trim()));
 // Label kelompok batch di kolom driver, tahan salah ketik: "BATCH 2", "BACH 2", "BATH 2", "Batch-2".
 const BATCH_LABEL = /\bbat?c?h\s*-?\s*([123])\b/i;
 export function readSheets(XLSX, wb) {

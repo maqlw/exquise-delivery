@@ -13,6 +13,7 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v045** | 25/11/2026 | Upload Matrix: kolom nomor pesanan berjudul "NO GD" / "GD" / "KODE GD" juga dikenali (25/11 Sheet1 memakai "NO GD" sehingga yang terbaca sheet Report dan 22 pesanan Sheet1 tidak masuk). |
 | **v044** | 24/11/2026 | Catatan & rencana integrasi Borzo Business API 1.8 (docs/BORZO.md): metode, isi order, status, callback ber-signature, langkah implementasi meniru Lalamove, dan yang perlu disiapkan (akun test, token, callback secret). Belum ada perubahan aplikasi. |
 | **v043** | 24/11/2026 | Lacak pesanan: daftar 65% : detail 35%, tabel muat tanpa geser (kolom tombol "Lihat" dihapus, klik/Enter pada baris membuka detail). Dispatch → Pihak ketiga: tab saring per penyedia (Semua, Lalamove, GoSend, Grab, Borzo, dan penyedia baru dari Pengaturan) dengan jumlahnya; tetap 10 per halaman. |
 | **v042** | 24/11/2026 | **Riwayat upload 7 hari** di Data pengiriman: waktu, siapa yang upload (diisi otomatis dari akun), nama file & sheet di dalamnya, sheet yang dibaca (Matrix / bukan), jumlah pesanan & yang dapat driver; "Lihat isi" membuka isi file per sheet + unduh. Riwayat & file terhapus otomatis setelah 7 hari (tiap 02.17 WIB). Peringatan file tanpa Sheet1 Matrix menyebut kemungkinan salah pilih file export ESB. |
