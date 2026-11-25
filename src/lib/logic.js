@@ -136,7 +136,7 @@ export function parseDate(v) {
 // Kolom nomor pesanan: "Goods Delivery Number", "NO PENGIRIMAN", "NO GD", "NO. GD", "GD", "KODE GD".
 const GD_HEAD = /goods delivery number|^no\.?\s*(pengiriman|gd)\b|^(kode\s*)?gd$/;
 export const COLSPEC = [
-  ["phoneSender", /^no\.?\s*(hp\s*)?pengirim$/], ["phone", /^phone$|^no\.?\s*(hp\s*)?penerima$/],
+  ["phoneSender", /^no\.?\s*((hp|telp|telepon|wa)\.?\s*)?pengirim$/], ["phone", /^phone$|^no\.?\s*((hp|telp|telepon|wa)\.?\s*)?penerima$/],
   ["gd", GD_HEAD], ["date", /goods delivery date|^tanggal/],
   ["sender", /^sender( name)?$|^(nama )?pengirim$/], ["recipient", /customer name|^nama( penerima)?$|^penerima$/],
   ["address", /^address|^alamat/], ["item", /product|^item$/], ["notes", /^notes$|^wording$/],
@@ -161,7 +161,8 @@ export function readSheets(XLSX, wb) {
     const gj = gdByContent(aoa, hi); if (gj >= 0) { for (const k in map) if (map[k] === gj) delete map[k]; map.gd = gj; } // isi kolom menang atas judulnya
     const matrix = map.recipient != null && /^nama/i.test(String(aoa[hi][map.recipient] ?? "").trim()); // Matrix berjudul Indonesia ("NAMA"); sheet Report berjudul "Customer Name"
     // Matrix: kolom setelah WORDING berisi nama driver / "BATCH 2" / "PICK UP OUTLET / LALAMOVE", di-merge per kelompok -> berlaku untuk baris di bawahnya.
-    const gc = matrix && map.notes != null ? map.notes + 1 : null, bt = v => String(v ?? "").match(BATCH_LABEL);
+    // Kolom driver = kolom pertama setelah WORDING yang bukan kolom data lain (kalau ada kolom baru disisipkan setelah WORDING).
+    const used = new Set(Object.values(map)), gc = matrix && map.notes != null ? (() => { let j = map.notes + 1; while (used.has(j)) j++; return j; })() : null, bt = v => String(v ?? "").match(BATCH_LABEL);
     let grp = "", gb = null;
     if (gc != null) for (let i = 0; i <= hi; i++) { const m = bt(aoa[i][gc]); if (m) gb = +m[1]; }
     const rows = aoa.slice(hi + 1).map(r => {

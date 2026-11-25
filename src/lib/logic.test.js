@@ -156,3 +156,12 @@ test("Kolom nomor pesanan dikenali dari isinya (GD…), walau judulnya salah tul
   const o = buildOrders(best.rows, [{ id: "ck" }], [{ id: "h", name: "HANSARI", origin_id: "ck" }]).orders;
   assert.deepEqual(o.map(x => [x.code, x.phoneSender ?? null, x.courierForced]), [["GD202611260001", null, "h"], ["GD202611260002", null, "h"], ["GD202611260003", null, "h"]]);
 });
+
+test("NO PENGIRIMAN = nomor pesanan, NO PENGIRIM = No HP pemesan (boleh setelah WORDING)", async () => {
+  const XLSX = await import("xlsx"); const { readSheets } = await import("./logic.js");
+  const H = ["NO", "NO PENGIRIMAN", "Tanggal Pengiriman", "PENGIRIM", "NAMA", "ALAMAT", "NO PENERIMA", "ITEM", "WORDING", "NO PENGIRIM", "7.00"];
+  const row = (i, g) => [i, "GD20261126010" + i, "26/11/2026", "Budi", "R" + i, "Jl. X, Kemang", "0812111100" + i, "Kue", "", "0813222200" + i, g];
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["MATRIX", , , , , , , , , , "BATCH 1"], H, row(1, "HANSARI"), row(2, null)]), "Sheet1");
+  const o = buildOrders(readSheets(XLSX, wb).rows, [{ id: "ck" }], [{ id: "h", name: "HANSARI", origin_id: "ck" }]).orders;
+  assert.deepEqual(o.map(x => [x.code, x.phoneSender, x.phone, x.courierForced]), [["GD202611260101", "628132222001", "628121111001", "h"], ["GD202611260102", "628132222002", "628121111002", "h"]]);
+});
