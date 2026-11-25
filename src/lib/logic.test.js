@@ -146,3 +146,13 @@ test("Excel Matrix tetap terbaca walau judul kolom berubah; BACH 2 = batch 2; DE
   assert.deepEqual([o.G4.origin, o.G4.courierForced], ["depok", "a"]);
   assert.equal(readSheets(XLSX, (() => { const w = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(w, rep, "Report"); return w; })()).matrix, false);
 });
+
+test("Kolom nomor pesanan dikenali dari isinya (GD…), walau judulnya salah tulis \"NO PENGIRIM\"", async () => {
+  const XLSX = await import("xlsx"); const { readSheets } = await import("./logic.js");
+  const H = ["NO", "NO PENGIRIM", "Tanggal Pengiriman", "PENGIRIM", "NAMA", "ALAMAT", "NO PENERIMA", "ITEM", "WORDING", "7.00"];
+  const row = (i, g) => [i, "GD20261126000" + i, "26/11/2026", "S", "R" + i, "Jl. X, Kemang", "", "Kue", "", g];
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["MATRIX", , , , , , , , , "BATCH 1"], H, row(1, "HANSARI"), row(2, null), row(3, null)]), "Sheet1");
+  const best = readSheets(XLSX, wb); assert.equal(best.matrix, true);
+  const o = buildOrders(best.rows, [{ id: "ck" }], [{ id: "h", name: "HANSARI", origin_id: "ck" }]).orders;
+  assert.deepEqual(o.map(x => [x.code, x.phoneSender ?? null, x.courierForced]), [["GD202611260001", null, "h"], ["GD202611260002", null, "h"], ["GD202611260003", null, "h"]]);
+});

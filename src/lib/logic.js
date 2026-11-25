@@ -142,7 +142,13 @@ export const COLSPEC = [
   ["address", /^address|^alamat/], ["item", /product|^item$/], ["notes", /^notes$|^wording$/],
   ["origin", /lokasi asal|^origin$/], ["batch", /^batch/], ["via", /kirim via|^via$/],
 ];
-const isHead = r => r.some(c => GD_HEAD.test(String(c ?? "").trim().toLowerCase())) && r.some(c => /^(alamat|address)/i.test(String(c ?? "").trim()));
+// Kolom yang ISINYA kode GD (GD2026…), apa pun judulnya: jaga-jaga judul salah tulis ("NO PENGIRIM", "NO GD", dst.).
+const gdByContent = (aoa, hi) => {
+  const below = aoa.slice(hi + 1, hi + 40), w = Math.max(0, ...below.map(r => r.length));
+  for (let j = 0; j < w; j++) { const v = below.map(r => String(r[j] ?? "").trim()).filter(Boolean); if (v.length >= 2 && v.filter(x => /^GD\d{6,}/i.test(x)).length >= v.length * .6) return j; }
+  return -1;
+};
+const isHead = (r, i, aoa) => r.some(c => /^(alamat|address)/i.test(String(c ?? "").trim())) && (r.some(c => GD_HEAD.test(String(c ?? "").trim().toLowerCase())) || gdByContent(aoa, i) >= 0);
 // Label kelompok batch di kolom driver, tahan salah ketik: "BATCH 2", "BACH 2", "BATH 2", "Batch-2".
 const BATCH_LABEL = /\bbat?c?h\s*-?\s*([123])\b/i;
 export function readSheets(XLSX, wb) {
@@ -152,6 +158,7 @@ export function readSheets(XLSX, wb) {
     const hi = aoa.findIndex(isHead); if (hi < 0) continue;
     const map = {};
     aoa[hi].forEach((c, j) => { const h = String(c ?? "").trim().toLowerCase(); const s = COLSPEC.find(([k, re]) => !(k in map) && re.test(h)); if (s) map[s[0]] = j; });
+    const gj = gdByContent(aoa, hi); if (gj >= 0) { for (const k in map) if (map[k] === gj) delete map[k]; map.gd = gj; } // isi kolom menang atas judulnya
     const matrix = map.recipient != null && /^nama/i.test(String(aoa[hi][map.recipient] ?? "").trim()); // Matrix berjudul Indonesia ("NAMA"); sheet Report berjudul "Customer Name"
     // Matrix: kolom setelah WORDING berisi nama driver / "BATCH 2" / "PICK UP OUTLET / LALAMOVE", di-merge per kelompok -> berlaku untuk baris di bawahnya.
     const gc = matrix && map.notes != null ? map.notes + 1 : null, bt = v => String(v ?? "").match(BATCH_LABEL);
