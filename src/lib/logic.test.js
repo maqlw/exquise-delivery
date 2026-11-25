@@ -165,3 +165,9 @@ test("NO PENGIRIMAN = nomor pesanan, NO PENGIRIM = No HP pemesan (boleh setelah 
   const o = buildOrders(readSheets(XLSX, wb).rows, [{ id: "ck" }], [{ id: "h", name: "HANSARI", origin_id: "ck" }]).orders;
   assert.deepEqual(o.map(x => [x.code, x.phoneSender, x.phone, x.courierForced]), [["GD202611260101", "628132222001", "628121111001", "h"], ["GD202611260102", "628132222002", "628121111002", "h"]]);
 });
+
+test("No HP dirapikan untuk Fonnte: format campur, luar negeri, telepon kantor", async () => {
+  const { isLandline } = await import("./logic.js");
+  for (const [v, p] of [["812-1852-6868", "6281218526868"], ["(081218008043)", "6281218008043"], ["+62 816-900-280", "62816900280"], [" 087777703031", "6287777703031"], ["8113833774", "628113833774"], ["+16132525225", "16132525225"]]) assert.equal(normPhone(v).p, p, v);
+  assert.ok(isLandline(normPhone("02150812100").p)); assert.ok(!isLandline(normPhone("081299899697").p)); assert.ok(normPhone("12345").bad);
+});

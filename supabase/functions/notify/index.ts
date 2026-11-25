@@ -70,6 +70,7 @@ Deno.serve(async (req) => {
   const results = [];
   for (const m of msgs) {
     if (!m.phone) { results.push({ role: m.role, sent: false, reason: "tanpa No HP" }); continue; }
+    if (/^62[2-7]/.test(m.phone)) { results.push({ role: m.role, sent: false, reason: "telepon rumah/kantor, bukan WhatsApp" }); continue; }
     let ok = false, response = "";
     if (!token) response = "FONNTE_TOKEN belum diatur";
     else {

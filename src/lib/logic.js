@@ -115,12 +115,16 @@ export function findArea(label) {
   const w = WIL.find(r => r.label === label || r.name === label); if (w) return { ...w, how: "kelurahan dipilih admin" };
   const A = AREAS.find(x => x.name === label); return A && { name: A.name, lat: A.lat, lng: A.lng, how: "area dipilih admin" };
 }
+// No HP -> 628… (format Fonnte). Spasi, "-", "( )", "+62", tanpa 0 di depan: dirapikan. Nomor luar negeri harus ditulis dengan "+".
 export function normPhone(v) {
   if (v == null || String(v).trim() === "") return { p: null };
-  const d = String(v).replace(/\D/g, "");
+  const raw = String(v).trim(), d = raw.replace(/\D/g, "");
+  if (raw.startsWith("+") && !d.startsWith("62")) return d.length >= 8 && d.length <= 15 ? { p: d } : { p: null, bad: true }; // mis. +1 613…
   const p = d.startsWith("62") ? d : d.startsWith("0") ? "62" + d.slice(1) : d.startsWith("8") ? "62" + d : null;
   return p && p.length >= 10 && p.length <= 15 ? { p } : { p: null, bad: true };
 }
+// Telepon rumah/kantor Indonesia (021, 022, …): bisa ditelepon, tapi tidak punya WhatsApp.
+export const isLandline = p => /^62[2-7]/.test(p || "");
 export function parseDeadline(text) {
   const m = text.match(/(?:jam|maxx?|maks|sebelum|paling lambat)\D{0,8}?(\d{1,2})(?:[.:](\d{2}))?/i);
   if (!m) return null; const h = +m[1], mi = +(m[2] || 0);
@@ -177,9 +181,10 @@ export function readSheets(XLSX, wb) {
 }
 // Hitung ulang catatan sistem, batas jam, dan titik peta dari isi pesanan.
 export function recompute(o) {
-  o.issues = (o.issues || []).filter(([, m]) => /Digabung|Carry over|Tanpa nomor GD|Ditambahkan manual|menu Kurir|driver di Excel/.test(m));
+  o.issues = (o.issues || []).filter(([, m]) => /Digabung|Carry over|Tanpa nomor GD|Ditambahkan manual|menu Kurir|driver di Excel|No HP pemesan/.test(m));
   o.out = false; o.lat = null; o.lng = null; o.area = null;
   if (o.phoneBad) o.issues.push(["warn", "No HP penerima tidak valid"]);
+  else if (isLandline(o.phone)) o.issues.push(["info", "No penerima telepon rumah/kantor: bisa ditelepon, WA tidak dikirim"]);
   else if (!o.phone) o.issues.push(["info", "Penerima tanpa No HP, link dibagikan manual"]);
   if (/pick ?up/i.test(o.address)) { o.via = "pickup"; o.issues.push(["info", "Pick up, tidak masuk rute"]); }
   o.deadline = o.reqTime ?? parseDeadline(o.address + " " + (o.notes || ""));
@@ -217,7 +222,9 @@ export function buildOrders(rows, origins = [], couriers = []) {
     if (!o.gd) { manual++; o.code = `MAN-${(ref || o.ymd).slice(8, 10)}${(ref || o.ymd).slice(5, 7)}-${String(manual).padStart(3, "0")}`; o.issues.push(["info", "Tanpa nomor GD, kode dibuat sistem"]); }
     else o.code = o.gd;
     const ph = normPhone(r.phone); o.phone = ph.p; o.phoneBad = !!ph.bad;
-    o.phoneSender = normPhone(r.phoneSender).p;
+    const ps = normPhone(r.phoneSender); o.phoneSender = ps.p;
+    if (ps.bad) o.issues.push(["warn", `No HP pemesan tidak valid (${t("phoneSender")}), WA ke pemesan tidak dikirim`]);
+    else if (isLandline(ps.p)) o.issues.push(["info", "No HP pemesan telepon rumah/kantor, WA ke pemesan tidak dikirim"]);
     if (ref && o.ymd < ref) { o.carry = true; o.issues.push(["warn", `Carry over dari ${dmy(o.ymd)}`]); o.ymd = ref; } // dikirim di hari file ini
     const og = t("origin").toLowerCase(), hit = og && origins.find(x => [x.id, x.short, x.name].some(n => n && (og.includes(n.toLowerCase()) || n.toLowerCase().includes(og))));
     o.origin = hit ? hit.id : (origins.find(x => x.id === "ck") || origins[0])?.id || "ck";

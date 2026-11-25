@@ -13,6 +13,7 @@ Perubahan database selalu dibuat menambah (tidak menghapus kolom), jadi versi la
 
 | Versi | Tanggal | Isi perubahan |
 |---|---|---|
+| **v048** | 25/11/2026 | No HP dari Excel dirapikan ke format 628… untuk Fonnte (spasi, "-", kurung, "+62", tanpa 0 di depan). Nomor luar negeri yang ditulis dengan "+" (mis. +1 613…) tetap pakai kode negaranya. Telepon rumah/kantor (021…) tetap disimpan untuk ditelepon tapi tidak dikirimi WA, dan muncul keterangan di pesanan. No HP pemesan (NO PENGIRIM) yang salah tulis diberi peringatan. |
 | **v047** | 25/11/2026 | Excel Matrix: kolom **NO PENGIRIM** (juga "NO HP/TELP/WA PENGIRIM") dibaca sebagai No HP pemesan, terpisah dari NO PENGIRIMAN (nomor pesanan). Kolom driver tetap terbaca walau ada kolom baru disisipkan setelah WORDING. |
 | **v046** | 25/11/2026 | Upload Matrix: kolom nomor pesanan juga dikenali dari ISINYA (kode GD2026…), apa pun judulnya — "NO PENGIRIMAN", "NO GD", atau salah tulis "NO PENGIRIM" tetap terbaca. Diuji ulang dengan file asli 19, 24, 25/11. |
 | **v045** | 25/11/2026 | Upload Matrix: kolom nomor pesanan berjudul "NO GD" / "GD" / "KODE GD" juga dikenali (25/11 Sheet1 memakai "NO GD" sehingga yang terbaca sheet Report dan 22 pesanan Sheet1 tidak masuk). |
