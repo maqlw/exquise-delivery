@@ -245,7 +245,7 @@ export function buildOrders(rows, origins = [], couriers = []) {
     }
     recompute(o);
     if ("group" in r && o.via !== "internal") o.courierForced = null; // ternyata di luar area / pick up
-    if ("group" in r && !o.courierForced && o.via === "internal") o.issues.push(["warn", g && !gBatch && !gOrg ? `Driver "${g}" di Excel tidak ada di menu Kurir` : "Belum ada driver di Excel"]);
+    if ("group" in r && !o.courierForced && o.via === "internal") o.issues.push(["warn", g && !gBatch && !gOrg ? `Excel: "${g}" bukan nama kurir (mis. wilayah). Pilih driver yang bisa ke sana, atau tambahkan di menu Kurir kalau kurir baru` : "Belum ada driver di Excel"]);
     if (o.gd) byGd[o.gd] = o; out.push(o);
   });
   out.forEach(o => { if (o.merged > 1) o.issues.push(["info", `Digabung dari ${o.merged} baris (nomor GD sama)`]); });
